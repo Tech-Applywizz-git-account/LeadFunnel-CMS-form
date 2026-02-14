@@ -313,18 +313,61 @@
 
         function addQ() {
             qCount++;
+            const id = `q-card-${qCount}`;
             const div = document.createElement('div');
-            div.className = 'card'; div.style.cssText = 'padding: 15px; margin-top: 15px; position: relative; background: rgba(255,255,255,0.3);';
+            div.className = 'card';
+            div.id = id;
+            div.style.cssText = 'padding: 20px; margin-top: 15px; position: relative; background: rgba(255,255,255,0.7); border: 1px solid var(--primary);';
             div.innerHTML = `
-                <button onclick="this.parentElement.remove()" style="position: absolute; top: 5px; right: 5px; color: red; border: none; background: none; cursor: pointer;">×</button>
-                <input type="text" class="q-label" placeholder="Question Title" style="margin-bottom: 8px; padding: 8px;">
-                <select class="q-type" style="padding: 8px;">
-                    <option value="text">Short Text</option>
-                    <option value="number">Number</option>
-                    <option value="date">Date</option>
-                </select>
+                <button onclick="this.parentElement.remove()" style="position: absolute; top: 10px; right: 10px; color: #ef4444; border: none; background: none; cursor: pointer; font-size: 20px; font-weight: bold;">&times;</button>
+                <div class="form-group" style="margin-bottom: 12px;">
+                    <label style="font-size: 13px;">Question Title</label>
+                    <input type="text" class="q-label" placeholder="e.g. What is your name?" style="padding: 8px;">
+                </div>
+                <div class="form-group" style="margin-bottom: 12px;">
+                    <label style="font-size: 13px;">Field Type</label>
+                    <select class="q-type" style="padding: 8px;" onchange="toggleQOptions('${id}')">
+                        <option value="text">Short Text</option>
+                        <option value="textarea">Long Text (Paragraph)</option>
+                        <option value="dropdown">Dropdown</option>
+                        <option value="radio">Radio Buttons</option>
+                        <option value="checkbox">Checkboxes</option>
+                        <option value="file">File Upload</option>
+                        <option value="number">Number</option>
+                        <option value="date">Date</option>
+                    </select>
+                </div>
+                <div class="q-options-area" style="display: none; border-top: 1px dashed #cbd5e1; padding-top: 12px; margin-top: 12px;">
+                    <label style="font-size: 12px; color: var(--text-muted);">Options (one per row)</label>
+                    <div class="q-options-list">
+                        <div style="display: flex; gap: 5px; margin-bottom: 5px;">
+                            <input type="text" class="opt-val" placeholder="Option 1" style="flex: 1; padding: 6px;">
+                            <button class="btn" style="padding: 0 10px; color: #ef4444;" onclick="this.parentElement.remove()">-</button>
+                        </div>
+                    </div>
+                    <button class="btn btn-outline" style="font-size: 11px; padding: 4px 10px;" onclick="addQOption('${id}')">+ Add Option</button>
+                </div>
             `;
             document.getElementById('q-container').appendChild(div);
+        }
+
+        function toggleQOptions(id) {
+            const card = document.getElementById(id);
+            const type = card.querySelector('.q-type').value;
+            const area = card.querySelector('.q-options-area');
+            const isChoice = ['dropdown', 'radio', 'checkbox'].includes(type);
+            area.style.display = isChoice ? 'block' : 'none';
+        }
+
+        function addQOption(id) {
+            const list = document.querySelector(`#${id} .q-options-list`);
+            const div = document.createElement('div');
+            div.style.cssText = 'display: flex; gap: 5px; margin-bottom: 5px;';
+            div.innerHTML = `
+                <input type="text" class="opt-val" placeholder="New Option" style="flex: 1; padding: 6px;">
+                <button class="btn" style="padding: 0 10px; color: #ef4444;" onclick="this.parentElement.remove()">-</button>
+            `;
+            list.appendChild(div);
         }
 
         function generateLink() {
@@ -345,10 +388,15 @@
                 const qs = Array.from(document.querySelectorAll('#q-container .card')).map(c => {
                     const lInput = c.querySelector('.q-label');
                     const tSelect = c.querySelector('.q-type');
-                    return {
-                        l: lInput ? lInput.value : "Question",
-                        t: tSelect ? tSelect.value : "text"
-                    };
+                    const label = lInput ? lInput.value : "Question";
+                    const type = tSelect ? tSelect.value : "text";
+
+                    const field = { l: label, t: type };
+                    if (['dropdown', 'radio', 'checkbox'].includes(type)) {
+                        const opts = Array.from(c.querySelectorAll('.opt-val')).map(i => i.value).filter(v => v !== "");
+                        field.o = opts;
+                    }
+                    return field;
                 });
 
                 if (!bid || !email) {
