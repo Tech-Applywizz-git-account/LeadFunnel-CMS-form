@@ -2,7 +2,7 @@
 description: Deploy the Applywizz CRM to Vercel
 ---
 
-# Deployment Workflow
+# Deployment Workflow 
 
 Follow these steps to deploy your application to Vercel:
 
