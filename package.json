@@ -6,8 +6,8 @@
   "scripts": {
     "build": "node build.js"
   },
-  "devDependencies": {
-    "node": ">=14.0.0"
+  "engines": {
+    "node": "20.x"
   },
   "dependencies": {
     "node-fetch": "^2.7.0"
