@@ -576,7 +576,7 @@
             const container = document.getElementById('view-fields-container');
             container.innerHTML = '';
 
-            const questions = config.f || config.qs || [];
+            const questions = (Array.isArray(config.f) ? config.f : (Array.isArray(config.qs) ? config.qs : []));
             if (questions.length === 0) {
                 console.warn("No questions found in config to render.");
                 container.innerHTML = "<p style='color: #666; font-style: italic;'>No questions have been added to this form yet.</p>";
