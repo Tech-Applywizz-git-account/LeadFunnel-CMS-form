@@ -220,6 +220,13 @@
                     <label>Lead Email</label>
                     <input type="email" id="admin-email" placeholder="lead@example.com" oninput="syncEmail(this.value)">
                 </div>
+                <div class="form-group">
+                    <label>Probability Score</label>
+                    <select id="admin-prob">
+                        <option value="60">60</option>
+                        <option value="90">90</option>
+                    </select>
+                </div>
 
                 <div id="q-container"></div>
                 <button class="btn btn-outline" style="width: 100%; margin-top: 10px;" onclick="addQ()">+ Add
@@ -399,12 +406,14 @@
                     return field;
                 });
 
+                const prob = document.getElementById('admin-prob').value;
+
                 if (!bid || !email) {
                     alert("Enter BID and Email");
                     return;
                 }
 
-                const cfg = { b: bid, e: email, m: mailBody, fLink: firstLink, az: az, qs: qs };
+                const cfg = { b: bid, e: email, p: prob, m: mailBody, fLink: firstLink, az: az, qs: qs };
                 console.log("Config Object:", cfg);
                 const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(cfg))));
                 const link = `${window.location.origin}${window.location.pathname}?c=${encoded}`;
@@ -546,12 +555,22 @@
                     }
                 }
 
+                // Add Probability Score (Hidden)
+                if (config.p) {
+                    results['probability_score'] = parseInt(config.p);
+                }
+
                 // Save to Supabase
                 if (supabaseClient) {
                     const { data: leadData } = await supabaseClient.from('leads').select('extra_data').eq('business_id', bid).single();
-                    const existing = leadData ? (leadData.extra_data || {}) : {};
-                    // Merge results flat into extra_data
-                    const updatedExtra = { ...existing, ...results };
+                    const existingExtra = leadData ? (leadData.extra_data || {}) : {};
+
+                    // Nest under Leadsfunnel
+                    const existingLeadsfunnel = existingExtra.Leadsfunnel || {};
+                    const updatedLeadsfunnel = { ...existingLeadsfunnel, ...results };
+
+                    const updatedExtra = { ...existingExtra, Leadsfunnel: updatedLeadsfunnel };
+
                     await supabaseClient.from('leads').update({ extra_data: updatedExtra }).eq('business_id', bid);
                 }
 
