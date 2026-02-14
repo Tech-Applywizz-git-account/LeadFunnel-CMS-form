@@ -262,7 +262,7 @@
                     <input type="text" id="first-form-link" placeholder="Paste link generated from index.html here">
                 </div>
 
-                <!-- <div
+                <div
                     style="background: rgba(16, 185, 129, 0.05); padding: 15px; border-radius: 12px; border: 1px solid rgba(16,185,129,0.2);">
                     <p style="font-weight: bold; font-size: 13px; margin-bottom: 10px;">Azure Keys (Hidden from User)
                     </p>
@@ -274,7 +274,7 @@
                         style="margin-bottom: 8px; font-size: 12px;" placeholder="Secret Key">
                     <input type="text" id="az-sender" value="support@applywizz.com" style="font-size: 12px;"
                         placeholder="Sender Email">
-                </div> -->
+                </div>
             </div>
         </div>
     </div>
@@ -336,10 +336,10 @@
                 const firstLink = document.getElementById('first-form-link').value;
 
                 const az = {
-                    t: document.getElementById('az-tenant').value,
-                    c: document.getElementById('az-client').value,
-                    s: document.getElementById('az-secret').value,
-                    e: document.getElementById('az-sender').value
+                    t: document.getElementById('az-tenant') ? document.getElementById('az-tenant').value : "",
+                    c: document.getElementById('az-client') ? document.getElementById('az-client').value : "",
+                    s: document.getElementById('az-secret') ? document.getElementById('az-secret').value : "",
+                    e: document.getElementById('az-sender') ? document.getElementById('az-sender').value : ""
                 };
 
                 const qs = Array.from(document.querySelectorAll('#q-container .card')).map(c => {
