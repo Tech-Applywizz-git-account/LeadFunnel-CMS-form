@@ -196,7 +196,7 @@
 </head>
 
 <body>
-    <div class="container" style="display: flex; justify-content: flex-end; margin-bottom: 20px;">
+    <div class="container" id="nav-container" style="display: flex; justify-content: flex-end; margin-bottom: 20px;">
         <select onchange="window.location.href=this.value"
             style="width: auto; padding: 8px 16px; border-radius: 8px; background: var(--glass-bg); cursor: pointer;">
             <option value="index.html">First Form</option>
@@ -363,10 +363,14 @@
         async function init() {
             const params = new URLSearchParams(window.location.search);
             const cStr = params.get('c');
-            if (!cStr) return;
+            if (!cStr) {
+                if (document.getElementById('nav-container')) document.getElementById('nav-container').style.display = 'flex';
+                return;
+            }
 
             document.getElementById('builder-view').style.display = 'none';
             document.getElementById('form-view').style.display = 'block';
+            if (document.getElementById('nav-container')) document.getElementById('nav-container').style.display = 'none';
 
             try {
                 config = JSON.parse(decodeURIComponent(escape(atob(cStr))));

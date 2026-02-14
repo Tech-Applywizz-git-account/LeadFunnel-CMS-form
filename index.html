@@ -301,7 +301,7 @@
 </head>
 
 <body>
-    <div class="container" style="margin-top: 10px; margin-bottom: 0;">
+    <div class="container" id="nav-container" style="margin-top: 10px; margin-bottom: 0;">
         <div class="card"
             style="padding: 12px 24px; display: flex; justify-content: flex-end; align-items: center; gap: 12px; border-top: 4px solid var(--secondary);">
             <label style="margin: 0; font-size: 14px; font-weight: 600; color: var(--text-muted);">View Mode:</label>
@@ -538,6 +538,7 @@
             }
 
             if (encoded) {
+                if (document.getElementById('nav-container')) document.getElementById('nav-container').style.display = 'none';
                 try {
                     currentFormConfig = JSON.parse(decodeURIComponent(escape(atob(encoded))));
 
