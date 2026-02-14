@@ -53,7 +53,18 @@ module.exports = async (req, res) => {
                         contentType: "HTML",
                         content: `<div style="font-family:sans-serif;padding:20px;">
                                     <p>${m.replace(/\n/g, '<br>')}</p>
-                                    <div style="margin:25px 0;"><a href="${f}" style="background:#2563eb;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;">Open Last Form</a></div>
+                                    <div style="margin:25px 0;">
+                                        <!--[if mso]>
+                                        <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${f}" style="height:45px;v-text-anchor:middle;width:200px;" arcsize="18%" stroke="f" fillcolor="#2563eb">
+                                            <w:anchorlock/>
+                                            <center>
+                                        <![endif]-->
+                                        <a href="${f}" style="background-color:#2563eb;border-radius:8px;color:#ffffff;display:inline-block;font-family:sans-serif;font-size:16px;font-weight:bold;line-height:45px;text-align:center;text-decoration:none;width:200px;-webkit-text-size-adjust:none;">Open Last Form</a>
+                                        <!--[if mso]>
+                                            </center>
+                                        </v:roundrect>
+                                        <![endif]-->
+                                    </div>
                                   </div>`
                     },
                     toRecipients: [{ emailAddress: { address: e } }]
