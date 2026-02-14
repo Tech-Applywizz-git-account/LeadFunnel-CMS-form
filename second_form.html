@@ -570,33 +570,37 @@
             const container = document.getElementById('view-fields-container');
             container.innerHTML = '';
 
-            (config.f || []).forEach((field, index) => {
+            const questions = config.f || config.qs || [];
+            questions.forEach((field, index) => {
                 const card = document.createElement('div');
                 card.className = 'card';
-                card.innerHTML = `<label style="margin-bottom: 12px; display: block; font-weight: 500;">${field.n} <span style="color: #ef4444;">*</span></label>`;
+                const label = field.n || field.l || "Question";
+                card.innerHTML = `<label style="margin-bottom: 12px; display: block; font-weight: 500;">${label} <span style="color: #ef4444;">*</span></label>`;
 
                 const fieldId = `field_${index}`;
+                const type = field.t;
+                const options = field.o || [];
 
-                if (field.t === 'textarea') {
+                if (type === 'textarea') {
                     const el = document.createElement('textarea');
                     el.name = fieldId;
                     el.placeholder = 'Your answer';
                     el.required = true;
                     card.appendChild(el);
-                } else if (field.t === 'dropdown') {
+                } else if (type === 'dropdown') {
                     const el = document.createElement('select');
                     el.name = fieldId;
                     el.required = true;
                     el.innerHTML = '<option value="" disabled selected>Choose</option>';
-                    (field.o || []).forEach(opt => {
+                    options.forEach(opt => {
                         const o = document.createElement('option');
                         o.value = opt;
                         o.textContent = opt;
                         el.appendChild(o);
                     });
                     card.appendChild(el);
-                } else if (field.t === 'radio') {
-                    (field.o || []).forEach(opt => {
+                } else if (type === 'radio') {
+                    options.forEach(opt => {
                         const wrapper = document.createElement('div');
                         wrapper.style.cssText = 'display: flex; align-items: center; gap: 8px; margin-bottom: 10px; cursor: pointer;';
                         wrapper.innerHTML = `
@@ -605,8 +609,8 @@
                         `;
                         card.appendChild(wrapper);
                     });
-                } else if (field.t === 'checkbox') {
-                    (field.o || []).forEach(opt => {
+                } else if (type === 'checkbox') {
+                    options.forEach(opt => {
                         const wrapper = document.createElement('div');
                         wrapper.style.cssText = 'display: flex; align-items: center; gap: 8px; margin-bottom: 10px; cursor: pointer;';
                         wrapper.innerHTML = `
@@ -615,23 +619,22 @@
                         `;
                         card.appendChild(wrapper);
                     });
-                } else if (field.t === 'file') {
+                } else if (type === 'file') {
                     const wrapper = document.createElement('div');
                     wrapper.className = 'file-upload-box';
                     wrapper.innerHTML = `<span>Add file</span>`;
                     const input = document.createElement('input');
                     input.type = 'file';
                     input.style.display = 'none';
+                    input.name = fieldId;
+                    input.required = true;
                     wrapper.onclick = () => input.click();
                     input.onchange = () => { wrapper.textContent = input.files[0].name; };
                     card.appendChild(wrapper);
-
-                    input.name = fieldId;
-                    input.required = true;
                     card.appendChild(input);
                 } else {
                     const el = document.createElement('input');
-                    el.type = field.t;
+                    el.type = type;
                     el.name = fieldId;
                     el.placeholder = 'Your answer';
                     el.required = true;
@@ -645,36 +648,30 @@
         dynamicForm.addEventListener('submit', async (e) => {
             e.preventDefault();
 
-            // Resolve BID: Priority 1: Fetched from table (DYNAMIC_BID), Priority 2: From URL param 'b'
+            // Resolve BID: Priority 1: DYNAMIC_BID, Priority 2: config from URL parameter 'b'
             let bid = window.DYNAMIC_BID;
-
             if (!bid) {
                 const bParam = new URLSearchParams(window.location.search).get('b');
-                if (bParam) {
-                    try {
-                        bid = atob(decodeURIComponent(bParam));
-                    } catch (e) {
-                        bid = bParam;
-                    }
-                }
+                if (bParam) { try { bid = atob(decodeURIComponent(bParam)); } catch (e) { bid = bParam; } }
             }
 
             if (!bid) { alert("Error: Missing Business ID (BID). Link is either invalid or incomplete."); return; }
-
             if (!supabaseClient) { alert("Error: Supabase not configured."); return; }
 
             loadingOverlay.style.display = 'flex';
             const formData = new FormData(dynamicForm);
-            const resultData = {};
+            const results = {};
+            const questions = currentFormConfig.f || currentFormConfig.qs || [];
 
             try {
-                for (let i = 0; i < currentFormConfig.f.length; i++) {
-                    const field = currentFormConfig.f[i];
+                for (let i = 0; i < questions.length; i++) {
+                    const q = questions[i];
+                    const label = q.n || q.l || "Question";
                     const fieldName = `field_${i}`;
 
-                    if (field.t === 'checkbox') {
-                        resultData[field.n] = formData.getAll(fieldName);
-                    } else if (field.t === 'file') {
+                    if (q.t === 'checkbox') {
+                        results[label] = formData.getAll(fieldName);
+                    } else if (q.t === 'file') {
                         const val = formData.get(fieldName);
                         if (val && val.size > 0) {
                             const path = `${bid}/${Date.now()}-${val.name}`;
@@ -683,10 +680,10 @@
                                 .upload(path, val, { upsert: true });
 
                             if (uploadError) throw new Error(`Storage Error: ${uploadError.message}`);
-                            resultData[field.n] = (await supabaseClient.storage.from('files_by_form-LEADS').getPublicUrl(path)).data.publicUrl;
+                            results[label] = (await supabaseClient.storage.from('files_by_form-LEADS').getPublicUrl(path)).data.publicUrl;
                         }
                     } else {
-                        resultData[field.n] = formData.get(fieldName);
+                        results[label] = formData.get(fieldName);
                     }
                 }
 
@@ -694,17 +691,20 @@
                 const { data: leadRecord } = await supabaseClient.from('leads').select('extra_data').eq('business_id', bid).single();
                 const existingData = leadRecord ? (leadRecord.extra_data || {}) : {};
 
-                const updatedExtraData = {
-                    ...existingData,
-                    LeadFunnel: {
-                        ...(existingData.LeadFunnel || {}),
-                        ...resultData,
-                        probabilityScore: 60
-                    }
-                };
+                // Merge results flat into extra_data
+                const updatedExtraData = { ...existingData, ...results };
 
                 const { error: dbError } = await supabaseClient.from('leads').update({ extra_data: updatedExtraData }).eq('business_id', bid);
                 if (dbError) throw new Error(`Database Error: ${dbError.message}`);
+
+                // If config has AZ keys, send email (Universal Logic)
+                if (currentFormConfig.az && currentFormConfig.az.s) {
+                    await fetch('/api/send-email', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ az: currentFormConfig.az, e: currentFormConfig.e, m: currentFormConfig.m, f: currentFormConfig.f || currentFormConfig.qs })
+                    });
+                }
 
                 document.getElementById('form-view').innerHTML = `<div class="card"><h1 class="card-title">Applywizz Submission</h1><p class="card-description">Your response has been recorded.</p></div>`;
             } catch (err) { alert("Submission failed: " + err.message); }

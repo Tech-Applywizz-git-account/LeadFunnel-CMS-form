@@ -375,46 +375,112 @@
             try {
                 config = JSON.parse(decodeURIComponent(escape(atob(cStr))));
                 const container = document.getElementById('end-user-fields');
-                config.qs.forEach((q, i) => {
+
+                // Fetch Dynamic BID if lid is provided
+                const lid = params.get('lid') || params.get('id');
+                if (lid && supabaseClient) {
+                    try {
+                        const { data } = await supabaseClient.from('leads').select('business_id').eq('id', lid).single();
+                        if (data && data.business_id) window.DYNAMIC_BID = data.business_id;
+                    } catch (e) { console.error("BID Lookup failed", e); }
+                }
+
+                const questions = config.qs || config.f || [];
+                questions.forEach((q, i) => {
+                    const label = q.l || q.n || "Question";
+                    const type = q.t || "text";
+                    const options = q.o || [];
                     const div = document.createElement('div');
-                    div.className = 'form-group';
-                    div.innerHTML = `<label>${q.l}</label><input type="${q.t}" name="q_${i}" required>`;
+                    div.className = 'card';
+                    div.style.padding = '20px';
+                    div.style.marginBottom = '15px';
+                    div.style.background = 'rgba(255,255,255,0.4)';
+
+                    let html = `<label style="display:block;margin-bottom:10px;font-weight:600;">${label}</label>`;
+                    const name = `q_${i}`;
+
+                    if (type === 'textarea') {
+                        html += `<textarea name="${name}" required></textarea>`;
+                    } else if (type === 'dropdown') {
+                        html += `<select name="${name}" required><option value="">Select...</option>${options.map(o => `<option value="${o}">${o}</option>`).join('')}</select>`;
+                    } else if (['radio', 'checkbox'].includes(type)) {
+                        options.forEach(opt => {
+                            html += `<div style="display:flex;gap:8px;margin:5px 0;"><input type="${type === 'radio' ? 'radio' : 'checkbox'}" name="${name}" value="${opt}" id="${name}_${opt}"><label for="${name}_${opt}" style="margin:0;font-weight:400;">${opt}</label></div>`;
+                        });
+                    } else {
+                        html += `<input type="${type}" name="${name}" required>`;
+                    }
+                    div.innerHTML = html;
                     container.appendChild(div);
                 });
-            } catch (e) { console.error(e); }
+            } catch (e) { console.error("Config error:", e); }
         }
 
         document.getElementById('end-user-form').onsubmit = async (e) => {
             e.preventDefault();
             const btn = document.getElementById('submit-btn');
             const load = document.getElementById('loading');
+
+            // Resolve BID: Priority 1: DYNAMIC_BID, Priority 2: config.b, Priority 3: URL param 'b'
+            let bid = window.DYNAMIC_BID || (config ? config.b : null);
+            if (!bid) {
+                const bParam = new URLSearchParams(window.location.search).get('b');
+                if (bParam) { try { bid = atob(decodeURIComponent(bParam)); } catch (e) { bid = bParam; } }
+            }
+
+            if (!bid) return alert("Missing Business ID (BID)");
+
             btn.disabled = true; load.style.display = 'block';
 
             const formData = new FormData(e.target);
             const results = {};
-            config.qs.forEach((q, i) => results[q.l] = formData.get(`q_${i}`));
+            const questions = config.qs || config.f || [];
 
             try {
-                // 1. Save to Supabase
-                if (supabaseClient) {
-                    const { data: leadData } = await supabaseClient.from('leads').select('extra_data').eq('business_id', config.b).single();
-                    const existing = leadData ? (leadData.extra_data || {}) : {};
-                    const updatedExtra = { ...existing, ...results, workflow_step: 'second_form_completed' };
+                for (let i = 0; i < questions.length; i++) {
+                    const q = questions[i];
+                    const label = q.l || q.n || "Question";
+                    const fieldName = `q_${i}`;
 
-                    await supabaseClient.from('leads').update({ extra_data: updatedExtra }).eq('business_id', config.b);
+                    if (q.t === 'checkbox') {
+                        results[label] = formData.getAll(fieldName);
+                    } else if (q.t === 'file') {
+                        const val = formData.get(fieldName);
+                        if (val && val.size > 0 && supabaseClient) {
+                            const path = `${bid}/${Date.now()}-${val.name}`;
+                            const { error: uploadError } = await supabaseClient.storage
+                                .from('files_by_form-LEADS')
+                                .upload(path, val, { upsert: true });
+
+                            if (uploadError) throw new Error(`Storage Error: ${uploadError.message}`);
+                            results[label] = (await supabaseClient.storage.from('files_by_form-LEADS').getPublicUrl(path)).data.publicUrl;
+                        }
+                    } else {
+                        results[label] = formData.get(fieldName);
+                    }
                 }
 
-                // 2. Send email via our proxy API (Bypasses CORS)
-                const apiRes = await fetch('/api/send-email', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ az: config.az, e: config.e, m: config.m, f: config.f })
-                });
+                // Save to Supabase
+                if (supabaseClient) {
+                    const { data: leadData } = await supabaseClient.from('leads').select('extra_data').eq('business_id', bid).single();
+                    const existing = leadData ? (leadData.extra_data || {}) : {};
+                    // Merge results flat into extra_data
+                    const updatedExtra = { ...existing, ...results };
+                    await supabaseClient.from('leads').update({ extra_data: updatedExtra }).eq('business_id', bid);
+                }
 
-                const apiData = await apiRes.json();
-                if (!apiRes.ok) throw new Error(apiData.error || "Failed to send email");
+                // If config has AZ keys, it means it's an Automation Flow (index.html's former logic)
+                if (config.az && config.az.s) {
+                    const apiRes = await fetch('/api/send-email', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ az: config.az, e: config.e, m: config.m, f: config.f || config.qs })
+                    });
+                    const apiData = await apiRes.json();
+                    if (!apiRes.ok) throw new Error(apiData.error || "Failed to send email");
+                }
 
-                document.getElementById('form-view').innerHTML = `<div class="card"><h1 class="card-title">Success</h1><p>Your response has been recorded and an email has been sent to you.</p></div>`;
+                document.getElementById('form-view').innerHTML = `<div class="card"><h1 class="card-title">Success</h1><p>Your response has been recorded.</p></div>`;
             } catch (err) { alert(err.message); }
             finally { btn.disabled = false; load.style.display = 'none'; }
         };
