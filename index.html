@@ -262,7 +262,7 @@
                     <input type="text" id="first-form-link" placeholder="Paste link generated from index.html here">
                 </div>
 
-                <div
+                <!-- <div
                     style="background: rgba(16, 185, 129, 0.05); padding: 15px; border-radius: 12px; border: 1px solid rgba(16,185,129,0.2);">
                     <p style="font-weight: bold; font-size: 13px; margin-bottom: 10px;">Azure Keys (Hidden from User)
                     </p>
@@ -274,7 +274,7 @@
                         style="margin-bottom: 8px; font-size: 12px;" placeholder="Secret Key">
                     <input type="text" id="az-sender" value="support@applywizz.com" style="font-size: 12px;"
                         placeholder="Sender Email">
-                </div>
+                </div> -->
             </div>
         </div>
     </div>
@@ -368,13 +368,22 @@
                 return;
             }
 
+            console.log("Form config detected. Initializing End-User Form.");
             document.getElementById('builder-view').style.display = 'none';
             document.getElementById('form-view').style.display = 'block';
             if (document.getElementById('nav-container')) document.getElementById('nav-container').style.display = 'none';
 
             try {
-                config = JSON.parse(decodeURIComponent(escape(atob(cStr))));
+                const raw = atob(cStr.replace(/ /g, '+')); // Fix space-to-plus corruption
+                try {
+                    config = JSON.parse(decodeURIComponent(escape(raw)));
+                } catch (e) {
+                    config = JSON.parse(raw); // Fallback for simple strings
+                }
+                console.log("Decoded Config:", config);
+
                 const container = document.getElementById('end-user-fields');
+                container.innerHTML = "";
 
                 // Fetch Dynamic BID if lid is provided
                 const lid = params.get('lid') || params.get('id');
@@ -382,38 +391,51 @@
                     try {
                         const { data } = await supabaseClient.from('leads').select('business_id').eq('id', lid).single();
                         if (data && data.business_id) window.DYNAMIC_BID = data.business_id;
-                    } catch (e) { console.error("BID Lookup failed", e); }
+                    } catch (e) { console.warn("Dynamic BID lookup failed", e); }
                 }
 
                 const questions = config.qs || config.f || [];
+                console.log("Rendering questions:", questions);
+
+                if (questions.length === 0) {
+                    console.log("No questions found in config.");
+                    container.innerHTML = "<p style='color: #666; font-style: italic;'>No questions have been added to this form yet.</p>";
+                    return;
+                }
+
                 questions.forEach((q, i) => {
                     const label = q.l || q.n || "Question";
                     const type = q.t || "text";
                     const options = q.o || [];
                     const div = document.createElement('div');
                     div.className = 'card';
-                    div.style.padding = '20px';
-                    div.style.marginBottom = '15px';
-                    div.style.background = 'rgba(255,255,255,0.4)';
+                    div.style.padding = '24px';
+                    div.style.marginBottom = '20px';
+                    div.style.background = 'white'; // Solid background for clarity
+                    div.style.boxShadow = '0 4px 12px rgba(0,0,0,0.05)';
 
-                    let html = `<label style="display:block;margin-bottom:10px;font-weight:600;">${label}</label>`;
+                    let html = `<label style="display:block;margin-bottom:12px;font-weight:600;color:var(--text);font-size:16px;">${label}</label>`;
                     const name = `q_${i}`;
 
                     if (type === 'textarea') {
-                        html += `<textarea name="${name}" required></textarea>`;
+                        html += `<textarea name="${name}" required style="background:#f8fafc; border: 1px solid #cbd5e1;"></textarea>`;
                     } else if (type === 'dropdown') {
-                        html += `<select name="${name}" required><option value="">Select...</option>${options.map(o => `<option value="${o}">${o}</option>`).join('')}</select>`;
+                        html += `<select name="${name}" required style="background:#f8fafc; border: 1px solid #cbd5e1;"><option value="">Select...</option>${options.map(o => `<option value="${o}">${o}</option>`).join('')}</select>`;
                     } else if (['radio', 'checkbox'].includes(type)) {
                         options.forEach(opt => {
-                            html += `<div style="display:flex;gap:8px;margin:5px 0;"><input type="${type === 'radio' ? 'radio' : 'checkbox'}" name="${name}" value="${opt}" id="${name}_${opt}"><label for="${name}_${opt}" style="margin:0;font-weight:400;">${opt}</label></div>`;
+                            html += `<div style="display:flex;gap:10px;margin:8px 0;align-items:center;"><input type="${type === 'radio' ? 'radio' : 'checkbox'}" name="${name}" value="${opt}" id="${name}_${opt}" style="width:18px;height:18px;"><label for="${name}_${opt}" style="margin:0;font-weight:400;font-size:15px;cursor:pointer;">${opt}</label></div>`;
                         });
                     } else {
-                        html += `<input type="${type}" name="${name}" required>`;
+                        html += `<input type="${type}" name="${name}" required style="background:#f8fafc; border: 1px solid #cbd5e1;">`;
                     }
                     div.innerHTML = html;
                     container.appendChild(div);
                 });
-            } catch (e) { console.error("Config error:", e); }
+                console.log("Form rendering complete.");
+            } catch (e) {
+                console.error("Critical Form Error:", e);
+                alert("Error loading form configuration. The link might be corrupted.");
+            }
         }
 
         document.getElementById('end-user-form').onsubmit = async (e) => {
@@ -425,7 +447,7 @@
             let bid = window.DYNAMIC_BID || (config ? config.b : null);
             if (!bid) {
                 const bParam = new URLSearchParams(window.location.search).get('b');
-                if (bParam) { try { bid = atob(decodeURIComponent(bParam)); } catch (e) { bid = bParam; } }
+                if (bParam) { try { bid = atob(decodeURIComponent(bParam).replace(/ /g, '+')); } catch (e) { bid = bParam; } }
             }
 
             if (!bid) return alert("Missing Business ID (BID)");

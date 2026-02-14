@@ -540,7 +540,12 @@
             if (encoded) {
                 if (document.getElementById('nav-container')) document.getElementById('nav-container').style.display = 'none';
                 try {
-                    currentFormConfig = JSON.parse(decodeURIComponent(escape(atob(encoded))));
+                    const raw = atob(encoded.replace(/ /g, '+'));
+                    try {
+                        currentFormConfig = JSON.parse(decodeURIComponent(escape(raw)));
+                    } catch (e) {
+                        currentFormConfig = JSON.parse(raw);
+                    }
 
                     // FETCH BID DYNAMICALLY from table if 'lid' or 'id' is provided
                     const lid = params.get('lid') || params.get('id');
@@ -562,6 +567,7 @@
         }
 
         function renderForm(config) {
+            console.log("Rendering Form with config:", config);
             builderView.style.display = 'none';
             formView.style.display = 'block';
             document.getElementById('view-title').textContent = "Applywizz Submission";
@@ -571,11 +577,22 @@
             container.innerHTML = '';
 
             const questions = config.f || config.qs || [];
+            if (questions.length === 0) {
+                console.warn("No questions found in config to render.");
+                container.innerHTML = "<p style='color: #666; font-style: italic;'>No questions have been added to this form yet.</p>";
+                return;
+            }
+
             questions.forEach((field, index) => {
                 const card = document.createElement('div');
                 card.className = 'card';
+                card.style.padding = '24px';
+                card.style.marginBottom = '20px';
+                card.style.background = 'white'; // Solid white
+                card.style.boxShadow = '0 4px 12px rgba(0,0,0,0.05)';
+
                 const label = field.n || field.l || "Question";
-                card.innerHTML = `<label style="margin-bottom: 12px; display: block; font-weight: 500;">${label} <span style="color: #ef4444;">*</span></label>`;
+                card.innerHTML = `<label style="margin-bottom: 15px; display: block; font-weight: 600; font-size: 16px; color: var(--text);">${label} <span style="color: #ef4444;">*</span></label>`;
 
                 const fieldId = `field_${index}`;
                 const type = field.t;
@@ -586,11 +603,13 @@
                     el.name = fieldId;
                     el.placeholder = 'Your answer';
                     el.required = true;
+                    el.style.background = "#f8fafc";
                     card.appendChild(el);
                 } else if (type === 'dropdown') {
                     const el = document.createElement('select');
                     el.name = fieldId;
                     el.required = true;
+                    el.style.background = "#f8fafc";
                     el.innerHTML = '<option value="" disabled selected>Choose</option>';
                     options.forEach(opt => {
                         const o = document.createElement('option');
@@ -602,20 +621,20 @@
                 } else if (type === 'radio') {
                     options.forEach(opt => {
                         const wrapper = document.createElement('div');
-                        wrapper.style.cssText = 'display: flex; align-items: center; gap: 8px; margin-bottom: 10px; cursor: pointer;';
+                        wrapper.style.cssText = 'display: flex; align-items: center; gap: 10px; margin-bottom: 12px; cursor: pointer;';
                         wrapper.innerHTML = `
-                            <input type="radio" name="${fieldId}" value="${opt}" id="${fieldId}_${opt}" required style="width: auto;">
-                            <label for="${fieldId}_${opt}" style="margin: 0; font-size: 14px; font-weight: 400; cursor: pointer;">${opt}</label>
+                            <input type="radio" name="${fieldId}" value="${opt}" id="${fieldId}_${opt}" required style="width: 18px; height: 18px;">
+                            <label for="${fieldId}_${opt}" style="margin: 0; font-size: 15px; font-weight: 400; cursor: pointer;">${opt}</label>
                         `;
                         card.appendChild(wrapper);
                     });
                 } else if (type === 'checkbox') {
                     options.forEach(opt => {
                         const wrapper = document.createElement('div');
-                        wrapper.style.cssText = 'display: flex; align-items: center; gap: 8px; margin-bottom: 10px; cursor: pointer;';
+                        wrapper.style.cssText = 'display: flex; align-items: center; gap: 10px; margin-bottom: 12px; cursor: pointer;';
                         wrapper.innerHTML = `
-                            <input type="checkbox" name="${fieldId}" value="${opt}" id="${fieldId}_${opt}" style="width: auto;">
-                            <label for="${fieldId}_${opt}" style="margin: 0; font-size: 14px; font-weight: 400; cursor: pointer;">${opt}</label>
+                            <input type="checkbox" name="${fieldId}" value="${opt}" id="${fieldId}_${opt}" style="width: 18px; height: 18px;">
+                            <label for="${fieldId}_${opt}" style="margin: 0; font-size: 15px; font-weight: 400; cursor: pointer;">${opt}</label>
                         `;
                         card.appendChild(wrapper);
                     });
@@ -629,7 +648,7 @@
                     input.name = fieldId;
                     input.required = true;
                     wrapper.onclick = () => input.click();
-                    input.onchange = () => { wrapper.textContent = input.files[0].name; };
+                    input.onchange = () => { wrapper.querySelector('span').textContent = input.files[0].name; };
                     card.appendChild(wrapper);
                     card.appendChild(input);
                 } else {
@@ -638,11 +657,13 @@
                     el.name = fieldId;
                     el.placeholder = 'Your answer';
                     el.required = true;
+                    el.style.background = "#f8fafc";
                     card.appendChild(el);
                 }
 
                 container.appendChild(card);
             });
+            console.log("Form rendering complete.");
         }
 
         dynamicForm.addEventListener('submit', async (e) => {
@@ -652,7 +673,7 @@
             let bid = window.DYNAMIC_BID;
             if (!bid) {
                 const bParam = new URLSearchParams(window.location.search).get('b');
-                if (bParam) { try { bid = atob(decodeURIComponent(bParam)); } catch (e) { bid = bParam; } }
+                if (bParam) { try { bid = atob(decodeURIComponent(bParam).replace(/ /g, '+')); } catch (e) { bid = bParam; } }
             }
 
             if (!bid) { alert("Error: Missing Business ID (BID). Link is either invalid or incomplete."); return; }
