@@ -329,6 +329,13 @@
                 <label>Business ID (BID)</label>
                 <input type="text" id="bid-input" placeholder="e.g. AWL-6747" style="border: 1px solid var(--primary);">
             </div>
+            <div class="form-group">
+                <label>Probability Score</label>
+                <select id="prob-input" style="border: 1px solid var(--primary);">
+                    <option value="60">60</option>
+                    <option value="90">90</option>
+                </select>
+            </div>
         </div>
 
         <div id="fields-container">
@@ -495,8 +502,11 @@
 
             if (fields.length === 0) { alert("Please add at least one question."); return; }
 
+            // Probability Score
+            const prob = document.getElementById('prob-input').value;
+
             // Minimalist config to keep URL short
-            const config = { f: fields };
+            const config = { f: fields, p: prob };
             const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(config))));
 
             // DYNAMIC BID (from UI input)
@@ -708,12 +718,20 @@
                     }
                 }
 
+                // Add Probability Score (Hidden)
+                if (currentFormConfig.p) {
+                    results['probability_score'] = parseInt(currentFormConfig.p);
+                }
+
                 // FETCH EXISTING DATA TO APPEND
                 const { data: leadRecord } = await supabaseClient.from('leads').select('extra_data').eq('business_id', bid).single();
-                const existingData = leadRecord ? (leadRecord.extra_data || {}) : {};
+                const existingExtra = leadRecord ? (leadRecord.extra_data || {}) : {};
 
-                // Merge results flat into extra_data
-                const updatedExtraData = { ...existingData, ...results };
+                // Nest under Leadsfunnel
+                const existingLeadsfunnel = existingExtra.Leadsfunnel || {};
+                const updatedLeadsfunnel = { ...existingLeadsfunnel, ...results };
+
+                const updatedExtraData = { ...existingExtra, Leadsfunnel: updatedLeadsfunnel };
 
                 const { error: dbError } = await supabaseClient.from('leads').update({ extra_data: updatedExtraData }).eq('business_id', bid);
                 if (dbError) throw new Error(`Database Error: ${dbError.message}`);
