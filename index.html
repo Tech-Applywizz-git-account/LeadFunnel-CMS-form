@@ -4,9 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Applywizz Form</title>
+    <title>Process Workflow - Applywizz</title>
     <script>
-        // Environment Variable Placeholders (Injected during Vercel Build)
         window.ENV_SUPABASE_URL = "___SUPABASE_URL___";
         window.ENV_SUPABASE_KEY = "___SUPABASE_KEY___";
     </script>
@@ -44,7 +43,6 @@
             overflow-x: hidden;
         }
 
-        /* Animated Background Blobs for Glass Effect */
         body::before,
         body::after {
             content: '';
@@ -83,57 +81,48 @@
 
         .container {
             width: 100%;
-            max-width: 770px;
+            max-width: 1200px;
             padding: 0 16px;
             z-index: 1;
+        }
+
+        .grid-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            width: 100%;
+            margin-top: 20px;
+        }
+
+        @media (max-width: 992px) {
+            .grid-layout {
+                grid-template-columns: 1fr;
+            }
         }
 
         .card {
             background: var(--glass-bg);
             backdrop-filter: blur(16px) saturate(180%);
-            -webkit-backdrop-filter: blur(16px) saturate(180%);
             border: 1px solid var(--glass-border);
             border-radius: 16px;
             padding: 32px;
             margin-bottom: 20px;
             box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
-        }
-
-        .card:hover {
-            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.12);
         }
 
         .card.main-card {
             border-top: 6px solid var(--primary);
             background: rgba(255, 255, 255, 0.65);
-            padding: 24px 32px;
-            /* Tighter vertical padding */
         }
 
         .card-title {
-            font-size: 36px;
+            font-size: 28px;
             font-weight: 700;
-            letter-spacing: -0.02em;
-            margin-bottom: 8px;
             background: linear-gradient(to right, #2563eb, #059669);
             -webkit-background-clip: text;
             background-clip: text;
             -webkit-text-fill-color: transparent;
-        }
-
-        #link-section {
-            display: none;
-        }
-
-        #form-view {
-            display: none;
-        }
-
-        .card-description {
-            font-size: 16px;
-            color: var(--text-muted);
-            font-weight: 500;
+            margin-bottom: 8px;
         }
 
         .form-group {
@@ -142,43 +131,28 @@
 
         label {
             display: block;
-            font-size: 16px;
+            font-size: 15px;
             font-weight: 600;
-            color: var(--text);
-            margin-bottom: 12px;
+            margin-bottom: 8px;
         }
 
-        input[type="text"],
-        input[type="email"],
-        input[type="number"],
-        input[type="date"],
-        input[type="tel"],
-        input[type="password"],
+        input,
         select,
         textarea {
             width: 100%;
             border: 1px solid var(--primary);
-            /* Blue highlight outline base */
             background: rgba(255, 255, 255, 0.2);
             border-radius: 12px;
-            padding: 14px 16px;
+            padding: 12px 16px;
             font-size: 15px;
-            color: var(--text);
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: all 0.3s ease;
         }
 
         input:focus,
-        select:focus,
         textarea:focus {
             outline: none;
             background: rgba(255, 255, 255, 0.5);
-            border: 1px solid var(--primary);
-            /* Double border effect using two shadows: one for the "gap" and one for the outer glow */
-            box-shadow:
-                0 0 0 2px rgba(255, 255, 255, 0.8),
-                0 0 0 5px rgba(37, 99, 235, 0.4),
-                0 8px 16px rgba(37, 99, 235, 0.1);
-            transform: scale(1.01);
+            box-shadow: 0 0 0 5px rgba(37, 99, 235, 0.2);
         }
 
         .btn {
@@ -189,107 +163,28 @@
             border-radius: 12px;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.2s;
             border: none;
-            font-size: 15px;
         }
 
         .btn-primary {
-            background: linear-gradient(135deg, var(--primary), #1e40af);
+            background: var(--primary);
             color: white;
-            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
-        }
-
-        .btn-primary.success {
-            background: linear-gradient(135deg, var(--secondary), #065f46);
-            pointer-events: none;
-        }
-
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(37, 99, 235, 0.3);
         }
 
         .btn-outline {
-            background: rgba(255, 255, 255, 0.3);
+            background: transparent;
+            border: 1px solid var(--primary);
             color: var(--primary);
-            border: 1px solid var(--glass-border);
         }
 
-        .btn-outline:hover {
-            background: rgba(255, 255, 255, 0.6);
-        }
-
-        .btn-danger {
-            background: rgba(255, 255, 255, 0.2);
-            color: #ef4444;
-        }
-
-        .btn-danger:hover {
-            background: #fee2e2;
+        #form-view {
+            display: none;
         }
 
         .divider {
             height: 1px;
             background: var(--glass-border);
             margin: 20px 0;
-        }
-
-        .file-upload-box {
-            border: 2px dashed var(--glass-border);
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 12px;
-            padding: 24px;
-            text-align: center;
-            cursor: pointer;
-            color: var(--primary);
-            font-weight: 600;
-            transition: all 0.2s;
-        }
-
-        .file-upload-box:hover {
-            background: rgba(255, 255, 255, 0.4);
-            border-color: var(--primary);
-        }
-
-        .toast {
-            position: fixed;
-            bottom: 32px;
-            left: 50%;
-            transform: translateX(-50%) translateY(100px);
-            background: rgba(15, 23, 42, 0.9);
-            backdrop-filter: blur(8px);
-            color: white;
-            padding: 12px 24px;
-            border-radius: 50px;
-            font-size: 14px;
-            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            z-index: 1000;
-        }
-
-        .toast.show {
-            transform: translateX(-50%) translateY(0);
-        }
-
-        .loading-overlay {
-            position: fixed;
-            inset: 0;
-            background: rgba(255, 255, 255, 0.4);
-            backdrop-filter: blur(10px);
-            display: none;
-            justify-content: center;
-            align-items: center;
-            z-index: 2000;
-            flex-direction: column;
-        }
-
-        .spinner {
-            width: 48px;
-            height: 48px;
-            border: 4px solid rgba(37, 99, 235, 0.1);
-            border-top: 4px solid var(--primary);
-            border-radius: 50%;
-            animation: spin 1s infinite cubic-bezier(0.5, 0.1, 0.4, 0.9);
         }
 
         @keyframes spin {
@@ -301,417 +196,230 @@
 </head>
 
 <body>
-    <div class="container" id="nav-container" style="margin-top: 10px; margin-bottom: 0;">
-        <div class="card"
-            style="padding: 12px 24px; display: flex; justify-content: flex-end; align-items: center; gap: 12px; border-top: 4px solid var(--secondary);">
-            <label style="margin: 0; font-size: 14px; font-weight: 600; color: var(--text-muted);">View Mode:</label>
-            <select id="form-switcher"
-                style="width: auto; padding: 8px 16px; border-radius: 8px; border: 1px solid var(--glass-border); background: var(--glass-bg); cursor: pointer;"
-                onchange="if(this.value) window.location.href=this.value">
-                <option value="index.html" selected>First Form</option>
-                <option value="second_form.html">Second Form</option>
-            </select>
-        </div>
+    <div class="container" id="nav-container" style="display: flex; justify-content: flex-end; margin-bottom: 20px;">
+        <select onchange="window.location.href=this.value"
+            style="width: auto; padding: 8px 16px; border-radius: 8px; background: var(--glass-bg); cursor: pointer;">
+            <option value="index.html" selected>First Form</option>
+            <option value="second_form.html">Second Form</option>
+        </select>
     </div>
 
+    <!-- ADMIN BUILDER VIEW -->
+    <div class="container grid-layout" id="builder-view">
+        <div class="column-left">
+            <div class="card main-card">
+                <h1 class="card-title">Setup Questions</h1>
+                <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 20px;">Add questions for the
+                    end-user.</p>
 
+                <div class="form-group">
+                    <label>Business ID (BID)</label>
+                    <input type="text" id="admin-bid" placeholder="e.g. AWL-6747" value="AWL-6747">
+                </div>
+                <div class="form-group">
+                    <label>Lead Email</label>
+                    <input type="email" id="admin-email" placeholder="lead@example.com" oninput="syncEmail(this.value)">
+                </div>
 
-    <div class="loading-overlay" id="loading-overlay">
-        <div class="spinner"></div>
-        <p id="loading-text" style="color: var(--text); margin-top: 16px; font-weight: 500;">Saving...</p>
-    </div>
+                <div id="q-container"></div>
+                <button class="btn btn-outline" style="width: 100%; margin-top: 10px;" onclick="addQ()">+ Add
+                    Question</button>
 
-    <div class="container" id="builder-view">
-        <div class="card main-card">
-            <h1 class="card-title">Applywizz Form</h1>
-            <p class="card-description">your career partner</p>
-            <div class="form-group" style="margin-top: 20px;">
-                <label>Business ID (BID)</label>
-                <input type="text" id="bid-input" placeholder="e.g. AWL-6747" style="border: 1px solid var(--primary);">
-            </div>
-        </div>
+                <div class="divider"></div>
+                <button class="btn btn-primary" style="width: 100%; background: var(--secondary);"
+                    onclick="generateLink()">Generate Link for End-User</button>
 
-        <div id="fields-container">
-            <!-- Fields added here -->
-        </div>
-
-        <div style="display: flex; justify-content: space-between; margin-bottom: 24px;">
-            <button class="btn btn-outline" id="add-field-btn">Add Question</button>
-            <button class="btn btn-primary" id="create-form-btn">Generate Form Link</button>
-        </div>
-
-        <div class="card" id="link-section">
-            <div class="section-title" style="color: var(--success);">Link Generated</div>
-            <div
-                style="display: flex; gap: 8px; align-items: center; background: white; padding: 12px; border-radius: 4px; border: 1px solid #ceead6;">
-                <div id="generated-link"
-                    style="flex: 1; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                    http://...</div>
-                <button class="btn btn-outline" id="copy-btn">Copy</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Live Form View -->
-    <div class="container" id="form-view">
-        <div class="card main-card">
-            <h1 id="view-title" class="card-title">Form Title</h1>
-            <p id="view-desc" class="card-description">Description</p>
-            <div class="divider"></div>
-            <p style="font-size: 12px; color: #d93025;">* Required</p>
-        </div>
-        <form id="dynamic-form">
-            <div id="view-fields-container">
-                <!-- Fields rendered here -->
-            </div>
-            <div style="display: flex; justify-content: flex-end; align-items: center; margin-top: 24px;">
-                <button type="submit" class="btn btn-primary" id="submit-btn"
-                    style="padding: 10px 40px;">Submit</button>
-            </div>
-        </form>
-    </div>
-
-    <div class="toast" id="toast">Link copied to clipboard</div>
-
-    <script>
-        // VERCEL CONFIGURATION
-        // Placeholders that will be replaced by your Vercel Environment Variables
-        // You can use a script in your package.json to replace these on deploy.
-        const GLOBAL_SUPABASE_CONFIG = {
-            url: window.ENV_SUPABASE_URL?.includes("___") ? "" : (window.ENV_SUPABASE_URL || ""),
-            key: window.ENV_SUPABASE_KEY?.includes("___") ? "" : (window.ENV_SUPABASE_KEY || "")
-        };
-
-        const fieldsContainer = document.getElementById('fields-container');
-        const addFieldBtn = document.getElementById('add-field-btn');
-        const createFormBtn = document.getElementById('create-form-btn');
-        const linkSection = document.getElementById('link-section');
-        const generatedLinkInput = document.getElementById('generated-link');
-        const copyBtn = document.getElementById('copy-btn');
-        const builderView = document.getElementById('builder-view');
-        const formView = document.getElementById('form-view');
-        const dynamicForm = document.getElementById('dynamic-form');
-        const toast = document.getElementById('toast');
-        const loadingOverlay = document.getElementById('loading-overlay');
-        const loadingText = document.getElementById('loading-text');
-        const bidInput = document.getElementById('bid-input');
-
-        let fieldCount = 0;
-        let supabaseClient = null;
-        let currentFormConfig = null;
-
-        // Initialize BID from URL if present
-        const urlParams = new URLSearchParams(window.location.search);
-        if (bidInput) {
-            bidInput.value = urlParams.get('bid') || "AWL-6747";
-        }
-
-        function createFieldRow() {
-            fieldCount++;
-            const id = `field-${fieldCount}`;
-            const row = document.createElement('div');
-            row.className = 'card field-card';
-            row.id = id;
-            row.innerHTML = `
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 12px;">
-                    <div class="form-group">
-                        <label>Question</label>
-                        <input type="text" placeholder="Question Title" class="field-name">
-                    </div>
-                    <div class="form-group">
-                        <label>Type</label>
-                        <select class="field-type" onchange="toggleOptions('${id}')">
-                            <option value="text">Short answer</option>
-                            <option value="textarea">Paragraph</option>
-                            <option value="dropdown">Dropdown</option>
-                            <option value="radio">Multiple choice (Radio)</option>
-                            <option value="checkbox">Checkboxes</option>
-                            <option value="file">File upload</option>
-                            <option value="email">Email</option>
-                            <option value="number">Number</option>
-                            <option value="date">Date</option>
-                        </select>
+                <div id="generated-section"
+                    style="display: none; margin-top: 20px; padding: 15px; background: white; border-radius: 12px; border: 1px solid var(--secondary);">
+                    <p style="font-size: 12px; font-weight: bold; margin-bottom: 8px;">End-User Form Link:</p>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="text" id="link-output" readonly style="font-size: 12px; flex: 1;">
+                        <button class="btn btn-outline" style="padding: 8px;" onclick="copyLink()">Copy</button>
                     </div>
                 </div>
-                
-                <div class="options-container" id="opts-${id}" style="display: none; border-top: 1px dashed var(--border); padding-top: 12px; margin-bottom: 12px;">
-                    <label style="font-size: 14px; color: var(--text-muted);">Options</label>
-                    <div class="options-list">
-                        <div class="opt-row" style="display: flex; gap: 8px; margin-bottom: 8px;">
-                            <input type="text" class="opt-val" placeholder="Option 1" style="flex: 1;">
-                            <button class="btn btn-danger" style="padding: 4px 12px;" onclick="this.parentElement.remove()">×</button>
+            </div>
+        </div>
+
+        <div class="column-right">
+            <div class="card" style="border-top: 6px solid var(--secondary);">
+                <h1 class="card-title"
+                    style="background: linear-gradient(to right, #10b981, #059669); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">
+                    Email Configuration</h1>
+                <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 20px;">Sent automatically after user
+                    submits.</p>
+
+                <div class="form-group">
+                    <label>Recipient (Mapped from Left)</label>
+                    <input type="email" id="mapped-email" readonly style="opacity: 0.7;">
+                </div>
+                <div class="form-group">
+                    <label>Email Body</label>
+                    <textarea id="mail-body" rows="4"
+                        placeholder="Hi, thank you for submitting. Click below to proceed..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label>First Form Link (from index.html)</label>
+                    <input type="text" id="first-form-link" placeholder="Paste link generated from index.html here">
+                </div>
+
+                <div
+                    style="background: rgba(16, 185, 129, 0.05); padding: 15px; border-radius: 12px; border: 1px solid rgba(16,185,129,0.2);">
+                    <p style="font-weight: bold; font-size: 13px; margin-bottom: 10px;">Azure Keys (Hidden from User)
+                    </p>
+                    <input type="password" id="az-tenant" value="dd60b066-1b78-4515-84fb-a565c251cb5a"
+                        style="margin-bottom: 8px; font-size: 12px;" placeholder="Tenant ID">
+                    <input type="password" id="az-client" value="4116ded8-f37d-4a78-9134-25a39e91bb41"
+                        style="margin-bottom: 8px; font-size: 12px;" placeholder="Client ID">
+                    <input type="password" id="az-secret" value="R_c8Q~XSSWy2Tk5GkRbkSURzW1zgKIjI1mjVfcS8"
+                        style="margin-bottom: 8px; font-size: 12px;" placeholder="Secret Key">
+                    <input type="text" id="az-sender" value="support@applywizz.com" style="font-size: 12px;"
+                        placeholder="Sender Email">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- END-USER FORM VIEW -->
+    <div class="container" id="form-view" style="max-width: 600px;">
+        <div class="card main-card">
+            <h1 class="card-title">Applywizz Submission</h1>
+            <p style="color: var(--text-muted); font-size: 14px;">Please complete the form below.</p>
+            <div class="divider"></div>
+            <form id="end-user-form">
+                <div id="end-user-fields"></div>
+                <div style="display: flex; gap: 12px; margin-top: 24px;">
+                    <button type="submit" id="submit-btn" class="btn btn-primary" style="flex: 1;">Submit &
+                        Continue</button>
+                    <div id="loading" style="display: none; align-self: center;">
+                        <div
+                            style="width: 24px; height: 24px; border: 3px solid rgba(37,99,235,0.2); border-top-color: var(--primary); border-radius: 50%; animation: spin 1s infinite linear;">
                         </div>
                     </div>
-                    <button class="btn btn-outline" style="font-size: 12px; padding: 4px 12px;" onclick="addOption('${id}')">+ Add option</button>
                 </div>
+            </form>
+        </div>
+    </div>
 
-                <div style="display: flex; justify-content: flex-end;">
-                    <button class="btn btn-danger" onclick="removeField('${id}')">Remove</button>
-                </div>
-            `;
-            fieldsContainer.appendChild(row);
+    <script>
+        let qCount = 0;
+        let config = null;
+        let supabaseClient = null;
+
+        if (window.ENV_SUPABASE_URL && window.ENV_SUPABASE_KEY && !window.ENV_SUPABASE_URL.includes("___")) {
+            supabaseClient = supabase.createClient(window.ENV_SUPABASE_URL, window.ENV_SUPABASE_KEY);
         }
 
-        function toggleOptions(id) {
-            const card = document.getElementById(id);
-            const type = card.querySelector('.field-type').value;
-            const container = document.getElementById(`opts-${id}`);
-            const isChoice = ['dropdown', 'radio', 'checkbox'].includes(type);
-            container.style.display = isChoice ? 'block' : 'none';
-        }
+        function syncEmail(v) { document.getElementById('mapped-email').value = v; }
 
-        function addOption(id) {
-            const list = document.querySelector(`#opts-${id} .options-list`);
+        function addQ() {
+            qCount++;
             const div = document.createElement('div');
-            div.className = 'opt-row';
-            div.style.cssText = 'display: flex; gap: 8px; margin-bottom: 8px;';
+            div.className = 'card'; div.style.cssText = 'padding: 15px; margin-top: 15px; position: relative; background: rgba(255,255,255,0.3);';
             div.innerHTML = `
-                <input type="text" class="opt-val" placeholder="New option" style="flex: 1;">
-                <button class="btn btn-danger" style="padding: 4px 12px;" onclick="this.parentElement.remove()">×</button>
+                <button onclick="this.parentElement.remove()" style="position: absolute; top: 5px; right: 5px; color: red; border: none; background: none; cursor: pointer;">×</button>
+                <input type="text" class="q-label" placeholder="Question Title" style="margin-bottom: 8px; padding: 8px;">
+                <select class="q-type" style="padding: 8px;">
+                    <option value="text">Short Text</option>
+                    <option value="number">Number</option>
+                    <option value="date">Date</option>
+                </select>
             `;
-            list.appendChild(div);
+            document.getElementById('q-container').appendChild(div);
         }
 
-        function removeField(id) { document.getElementById(id).remove(); }
+        function generateLink() {
+            const bid = document.getElementById('admin-bid').value;
+            const email = document.getElementById('admin-email').value;
+            const mailBody = document.getElementById('mail-body').value;
+            const firstLink = document.getElementById('first-form-link').value;
 
-        addFieldBtn.addEventListener('click', createFieldRow);
+            const az = {
+                t: document.getElementById('az-tenant').value,
+                c: document.getElementById('az-client').value,
+                s: document.getElementById('az-secret').value,
+                e: document.getElementById('az-sender').value
+            };
 
-        createFormBtn.addEventListener('click', () => {
-            const fieldCards = document.querySelectorAll('.field-card');
-            const fields = [];
+            const qs = Array.from(document.querySelectorAll('#q-container .card')).map(c => ({
+                l: c.querySelector('.q-label').value,
+                t: c.querySelector('.q-type').value
+            }));
 
-            fieldCards.forEach((card) => {
-                const name = card.querySelector('.field-name').value;
-                const type = card.querySelector('.field-type').value;
-                if (!name) return;
+            if (!bid || !email) return alert("Enter BID and Email");
 
-                const fieldObj = { n: name, t: type }; // Short keys
-                if (['dropdown', 'radio', 'checkbox'].includes(type)) {
-                    const optInputs = card.querySelectorAll('.opt-val');
-                    fieldObj.o = Array.from(optInputs).map(i => i.value).filter(v => v !== "");
-                }
-                fields.push(fieldObj);
-            });
+            const cfg = { b: bid, e: email, m: mailBody, f: firstLink, az: az, qs: qs };
+            const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(cfg))));
+            const link = `${window.location.origin}${window.location.pathname}?c=${encoded}`;
 
-            if (fields.length === 0) { alert("Please add at least one question."); return; }
+            document.getElementById('link-output').value = link;
+            document.getElementById('generated-section').style.display = 'block';
+        }
 
-            // Minimalist config to keep URL short
-            const config = { f: fields };
-            const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(config))));
+        function copyLink() {
+            navigator.clipboard.writeText(document.getElementById('link-output').value);
+            alert("Link copied!");
+        }
 
-            // DYNAMIC BID (from UI input)
-            const bid = bidInput.value || "AWL-6747";
-            const bHash = btoa(bid); // Keep padding for robustness
-
-            const shortUrl = `${window.location.origin}${window.location.pathname}?c=${encoded}&b=${encodeURIComponent(bHash)}`;
-
-            generatedLinkInput.textContent = shortUrl;
-            linkSection.style.display = 'block';
-
-            // Button Animation
-            const originalText = createFormBtn.innerHTML;
-            createFormBtn.innerHTML = 'Generated ✓';
-            createFormBtn.classList.add('success');
-
-            setTimeout(() => {
-                createFormBtn.innerHTML = originalText;
-                createFormBtn.classList.remove('success');
-            }, 3000);
-        });
-
-        copyBtn.addEventListener('click', () => {
-            navigator.clipboard.writeText(generatedLinkInput.textContent).then(() => {
-                toast.classList.add('show');
-                setTimeout(() => toast.classList.remove('show'), 3000);
-            });
-        });
-
-        async function initApp() {
+        async function init() {
             const params = new URLSearchParams(window.location.search);
-            const encoded = params.get('c'); // Use compact param 'c'
-
-            // Initialize Supabase Client
-            const finalUrl = GLOBAL_SUPABASE_CONFIG.url;
-            const finalKey = GLOBAL_SUPABASE_CONFIG.key;
-            if (finalUrl && finalKey && !finalUrl.includes('PLACEHOLDER') && finalUrl !== "") {
-                supabaseClient = supabase.createClient(finalUrl, finalKey);
+            const cStr = params.get('c');
+            if (!cStr) {
+                if (document.getElementById('nav-container')) document.getElementById('nav-container').style.display = 'flex';
+                return;
             }
 
-            if (encoded) {
-                if (document.getElementById('nav-container')) document.getElementById('nav-container').style.display = 'none';
-                try {
-                    currentFormConfig = JSON.parse(decodeURIComponent(escape(atob(encoded))));
-
-                    // FETCH BID DYNAMICALLY from table if 'lid' or 'id' is provided
-                    const lid = params.get('lid') || params.get('id');
-                    if (lid && supabaseClient) {
-                        try {
-                            const { data, error } = await supabaseClient.from('leads').select('business_id').eq('id', lid).single();
-                            if (data && data.business_id) {
-                                window.DYNAMIC_BID = data.business_id;
-                                console.log("Dynamic BID loaded:", window.DYNAMIC_BID);
-                            }
-                        } catch (err) { console.error("Lookup error", err); }
-                    }
-
-                    renderForm(currentFormConfig);
-                } catch (e) { console.error("Config error", e); }
-            } else {
-                createFieldRow();
-            }
-        }
-
-        function renderForm(config) {
-            builderView.style.display = 'none';
-            formView.style.display = 'block';
-            document.getElementById('view-title').textContent = "Applywizz Submission";
-            document.getElementById('view-desc').textContent = "your career partner";
-
-            const container = document.getElementById('view-fields-container');
-            container.innerHTML = '';
-
-            (config.f || []).forEach((field, index) => {
-                const card = document.createElement('div');
-                card.className = 'card';
-                card.innerHTML = `<label style="margin-bottom: 12px; display: block; font-weight: 500;">${field.n} <span style="color: #ef4444;">*</span></label>`;
-
-                const fieldId = `field_${index}`;
-
-                if (field.t === 'textarea') {
-                    const el = document.createElement('textarea');
-                    el.name = fieldId;
-                    el.placeholder = 'Your answer';
-                    el.required = true;
-                    card.appendChild(el);
-                } else if (field.t === 'dropdown') {
-                    const el = document.createElement('select');
-                    el.name = fieldId;
-                    el.required = true;
-                    el.innerHTML = '<option value="" disabled selected>Choose</option>';
-                    (field.o || []).forEach(opt => {
-                        const o = document.createElement('option');
-                        o.value = opt;
-                        o.textContent = opt;
-                        el.appendChild(o);
-                    });
-                    card.appendChild(el);
-                } else if (field.t === 'radio') {
-                    (field.o || []).forEach(opt => {
-                        const wrapper = document.createElement('div');
-                        wrapper.style.cssText = 'display: flex; align-items: center; gap: 8px; margin-bottom: 10px; cursor: pointer;';
-                        wrapper.innerHTML = `
-                            <input type="radio" name="${fieldId}" value="${opt}" id="${fieldId}_${opt}" required style="width: auto;">
-                            <label for="${fieldId}_${opt}" style="margin: 0; font-size: 14px; font-weight: 400; cursor: pointer;">${opt}</label>
-                        `;
-                        card.appendChild(wrapper);
-                    });
-                } else if (field.t === 'checkbox') {
-                    (field.o || []).forEach(opt => {
-                        const wrapper = document.createElement('div');
-                        wrapper.style.cssText = 'display: flex; align-items: center; gap: 8px; margin-bottom: 10px; cursor: pointer;';
-                        wrapper.innerHTML = `
-                            <input type="checkbox" name="${fieldId}" value="${opt}" id="${fieldId}_${opt}" style="width: auto;">
-                            <label for="${fieldId}_${opt}" style="margin: 0; font-size: 14px; font-weight: 400; cursor: pointer;">${opt}</label>
-                        `;
-                        card.appendChild(wrapper);
-                    });
-                } else if (field.t === 'file') {
-                    const wrapper = document.createElement('div');
-                    wrapper.className = 'file-upload-box';
-                    wrapper.innerHTML = `<span>Add file</span>`;
-                    const input = document.createElement('input');
-                    input.type = 'file';
-                    input.style.display = 'none';
-                    wrapper.onclick = () => input.click();
-                    input.onchange = () => { wrapper.textContent = input.files[0].name; };
-                    card.appendChild(wrapper);
-
-                    input.name = fieldId;
-                    input.required = true;
-                    card.appendChild(input);
-                } else {
-                    const el = document.createElement('input');
-                    el.type = field.t;
-                    el.name = fieldId;
-                    el.placeholder = 'Your answer';
-                    el.required = true;
-                    card.appendChild(el);
-                }
-
-                container.appendChild(card);
-            });
-        }
-
-        dynamicForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-
-            // Resolve BID: Priority 1: Fetched from table (DYNAMIC_BID), Priority 2: From URL param 'b'
-            let bid = window.DYNAMIC_BID;
-
-            if (!bid) {
-                const bParam = new URLSearchParams(window.location.search).get('b');
-                if (bParam) {
-                    try {
-                        bid = atob(decodeURIComponent(bParam));
-                    } catch (e) {
-                        bid = bParam;
-                    }
-                }
-            }
-
-            if (!bid) { alert("Error: Missing Business ID (BID). Link is either invalid or incomplete."); return; }
-
-            if (!supabaseClient) { alert("Error: Supabase not configured."); return; }
-
-            loadingOverlay.style.display = 'flex';
-            const formData = new FormData(dynamicForm);
-            const resultData = {};
+            document.getElementById('builder-view').style.display = 'none';
+            document.getElementById('form-view').style.display = 'block';
+            if (document.getElementById('nav-container')) document.getElementById('nav-container').style.display = 'none';
 
             try {
-                for (let i = 0; i < currentFormConfig.f.length; i++) {
-                    const field = currentFormConfig.f[i];
-                    const fieldName = `field_${i}`;
+                config = JSON.parse(decodeURIComponent(escape(atob(cStr))));
+                const container = document.getElementById('end-user-fields');
+                config.qs.forEach((q, i) => {
+                    const div = document.createElement('div');
+                    div.className = 'form-group';
+                    div.innerHTML = `<label>${q.l}</label><input type="${q.t}" name="q_${i}" required>`;
+                    container.appendChild(div);
+                });
+            } catch (e) { console.error(e); }
+        }
 
-                    if (field.t === 'checkbox') {
-                        resultData[field.n] = formData.getAll(fieldName);
-                    } else if (field.t === 'file') {
-                        const val = formData.get(fieldName);
-                        if (val && val.size > 0) {
-                            const path = `${bid}/${Date.now()}-${val.name}`;
-                            const { error: uploadError } = await supabaseClient.storage
-                                .from('files_by_form-LEADS')
-                                .upload(path, val, { upsert: true });
+        document.getElementById('end-user-form').onsubmit = async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('submit-btn');
+            const load = document.getElementById('loading');
+            btn.disabled = true; load.style.display = 'block';
 
-                            if (uploadError) throw new Error(`Storage Error: ${uploadError.message}`);
-                            resultData[field.n] = (await supabaseClient.storage.from('files_by_form-LEADS').getPublicUrl(path)).data.publicUrl;
-                        }
-                    } else {
-                        resultData[field.n] = formData.get(fieldName);
-                    }
+            const formData = new FormData(e.target);
+            const results = {};
+            config.qs.forEach((q, i) => results[q.l] = formData.get(`q_${i}`));
+
+            try {
+                // 1. Save to Supabase
+                if (supabaseClient) {
+                    const { data: leadData } = await supabaseClient.from('leads').select('extra_data').eq('business_id', config.b).single();
+                    const existing = leadData ? (leadData.extra_data || {}) : {};
+                    const updatedExtra = { ...existing, ...results, workflow_step: 'second_form_completed' };
+
+                    await supabaseClient.from('leads').update({ extra_data: updatedExtra }).eq('business_id', config.b);
                 }
 
-                // FETCH EXISTING DATA TO APPEND
-                const { data: leadRecord } = await supabaseClient.from('leads').select('extra_data').eq('business_id', bid).single();
-                const existingData = leadRecord ? (leadRecord.extra_data || {}) : {};
+                // 2. Send email via our proxy API (Bypasses CORS)
+                const apiRes = await fetch('/api/send-email', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ az: config.az, e: config.e, m: config.m, f: config.f })
+                });
 
-                const updatedExtraData = {
-                    ...existingData,
-                    LeadFunnel: {
-                        ...(existingData.LeadFunnel || {}),
-                        ...resultData,
-                        probabilityScore: 60
-                    }
-                };
+                const apiData = await apiRes.json();
+                if (!apiRes.ok) throw new Error(apiData.error || "Failed to send email");
 
-                const { error: dbError } = await supabaseClient.from('leads').update({ extra_data: updatedExtraData }).eq('business_id', bid);
-                if (dbError) throw new Error(`Database Error: ${dbError.message}`);
+                document.getElementById('form-view').innerHTML = `<div class="card"><h1 class="card-title">Success</h1><p>Your response has been recorded and an email has been sent to you.</p></div>`;
+            } catch (err) { alert(err.message); }
+            finally { btn.disabled = false; load.style.display = 'none'; }
+        };
 
-                document.getElementById('form-view').innerHTML = `<div class="card"><h1 class="card-title">Applywizz Submission</h1><p class="card-description">Your response has been recorded.</p></div>`;
-            } catch (err) { alert("Submission failed: " + err.message); }
-            finally { loadingOverlay.style.display = 'none'; }
-        });
-
-        initApp();
+        init();
     </script>
 </body>
 
