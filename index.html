@@ -408,10 +408,8 @@
 
                 const prob = document.getElementById('admin-prob').value;
 
-                if (!bid || !email) {
-                    alert("Enter BID and Email");
-                    return;
-                }
+                // Validation removed per user request (BID/Email can be dynamic)
+                // if (!bid || !email) { alert("Enter BID and Email"); return; }
 
                 const cfg = { b: bid, e: email, p: prob, m: mailBody, fLink: firstLink, az: az, qs: qs };
                 console.log("Config Object:", cfg);
@@ -457,13 +455,16 @@
                 const container = document.getElementById('end-user-fields');
                 container.innerHTML = "";
 
-                // Fetch Dynamic BID if lid is provided
+                // Fetch Dynamic BID and Email if lid is provided
                 const lid = params.get('lid') || params.get('id');
                 if (lid && supabaseClient) {
                     try {
-                        const { data } = await supabaseClient.from('leads').select('business_id').eq('id', lid).single();
-                        if (data && data.business_id) window.DYNAMIC_BID = data.business_id;
-                    } catch (e) { console.warn("Dynamic BID lookup failed", e); }
+                        const { data } = await supabaseClient.from('leads').select('business_id, email').eq('id', lid).single();
+                        if (data) {
+                            if (data.business_id) window.DYNAMIC_BID = data.business_id;
+                            if (data.email) window.DYNAMIC_EMAIL = data.email;
+                        }
+                    } catch (e) { console.warn("Dynamic lookup failed", e); }
                 }
 
                 // Detect questions: Check qs (priority) then f (backward compatibility)
@@ -576,13 +577,18 @@
 
                 // If config has AZ keys, it means it's an Automation Flow (index.html's former logic)
                 if (config.az && config.az.s) {
-                    const apiRes = await fetch('/api/send-email', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ az: config.az, e: config.e, m: config.m, f: config.fLink || config.f })
-                    });
-                    const apiData = await apiRes.json();
-                    if (!apiRes.ok) throw new Error(apiData.error || "Failed to send email");
+                    const recipient = config.e || window.DYNAMIC_EMAIL;
+                    if (recipient) {
+                        const apiRes = await fetch('/api/send-email', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ az: config.az, e: recipient, m: config.m, f: config.fLink || config.f })
+                        });
+                        const apiData = await apiRes.json();
+                        if (!apiRes.ok) console.warn("Failed to send email", apiData.error);
+                    } else {
+                        console.warn("Skipping email: No recipient found (config.e or DYNAMIC_EMAIL missing).");
+                    }
                 }
 
                 document.getElementById('form-view').innerHTML = `<div class="card"><h1 class="card-title">Success</h1><p>Your response has been recorded.</p></div>`;
