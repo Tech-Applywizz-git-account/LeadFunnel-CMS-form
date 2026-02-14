@@ -8,26 +8,23 @@ const path = require('path');
  * actual environment variables configured in Vercel.
  */
 
-const indexPath = path.join(__dirname, 'index.html');
+const htmlFiles = ['index.html', 'second_form.html'];
 
-if (!fs.existsSync(indexPath)) {
-  console.error('index.html not found!');
-  process.exit(1);
-}
+htmlFiles.forEach(file => {
+  const filePath = path.join(__dirname, file);
+  if (!fs.existsSync(filePath)) {
+    console.warn(`${file} not found, skipping...`);
+    return;
+  }
 
-let content = fs.readFileSync(indexPath, 'utf8');
+  let content = fs.readFileSync(filePath, 'utf8');
+  const supabaseUrl = process.env.SUPABASE_URL || '___SUPABASE_URL___';
+  const supabaseKey = process.env.SUPABASE_KEY || '___SUPABASE_KEY___';
 
-// Replace Supabase URL
-const supabaseUrl = process.env.SUPABASE_URL || '___SUPABASE_URL___';
-const supabaseKey = process.env.SUPABASE_KEY || '___SUPABASE_KEY___';
+  console.log(`Injecting environment variables into ${file}...`);
+  content = content.replace(/___SUPABASE_URL___/g, supabaseUrl);
+  content = content.replace(/___SUPABASE_KEY___/g, supabaseKey);
 
-console.log('Injecting environment variables...');
-console.log('SUPABASE_URL:', supabaseUrl ? 'Set' : 'Not Set');
-console.log('SUPABASE_KEY:', supabaseKey ? 'Set' : 'Not Set');
-
-content = content.replace(/___SUPABASE_URL___/g, supabaseUrl);
-content = content.replace(/___SUPABASE_KEY___/g, supabaseKey);
-
-// Write back to index.html
-fs.writeFileSync(indexPath, content);
-console.log('Build complete: index.html updated.');
+  fs.writeFileSync(filePath, content);
+  console.log(`Build complete: ${file} updated.`);
+});
