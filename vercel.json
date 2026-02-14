@@ -1,0 +1,8 @@
+{
+    "version": 2,
+    "name": "crm-n8n-form-builder",
+    "cleanUrls": true,
+    "buildCommand": "npm run build",
+    "outputDirectory": "./",
+    "framework": null
+}

@@ -1,0 +1,12 @@
+{
+  "name": "crm-n8n",
+  "version": "1.0.0",
+  "description": "Form builder with dynamic BID and Supabase integration",
+  "main": "index.html",
+  "scripts": {
+    "build": "node build.js"
+  },
+  "devDependencies": {
+    "node": ">=14.0.0"
+  }
+}
