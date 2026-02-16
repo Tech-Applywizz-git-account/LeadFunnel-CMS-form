@@ -400,6 +400,13 @@
         let supabaseClient = null;
         let currentFormConfig = null;
 
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 4000);
+        }
+
         // Initialize BID from URL if present
         const urlParams = new URLSearchParams(window.location.search);
         if (bidInput) {
@@ -699,10 +706,13 @@
                 const query = supabaseClient.from('leads').select('id, extra_data').eq('email', userEmail);
                 if (bid) query.eq('business_id', bid);
 
-                const { data: leads, error: fetchError } = await query.order('updated_at', { ascending: false }).limit(1);
+                const { data: leads, error: fetchError } = await query.order('created_at', { ascending: false }).limit(1);
 
                 if (fetchError) throw new Error(`Fetch Error: ${fetchError.message}`);
-                if (!leads || leads.length === 0) throw new Error("No existing record found for this email. Please complete the first form first.");
+                if (!leads || leads.length === 0) {
+                    showToast("we could found the email in the try with another mail id");
+                    return;
+                }
 
                 const lead = leads[0];
 
