@@ -10,7 +10,7 @@ node_modules/
 .vercel/
 dist/
 build/
-
+*.md
 # IDE files
 .vscode/
 .idea/

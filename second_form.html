@@ -361,6 +361,16 @@
             <p style="font-size: 12px; color: #d93025;">* Required</p>
         </div>
         <form id="dynamic-form">
+            <!-- Identification Email Field -->
+            <div class="card"
+                style="padding: 24px; margin-bottom: 20px; background: white; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+                <label
+                    style="margin-bottom: 15px; display: block; font-weight: 600; font-size: 16px; color: var(--text);">Email
+                    <span style="color: #ef4444;">*</span></label>
+                <input type="email" name="user_email" id="user-email-static" required placeholder="Enter your email"
+                    style="background: #f8fafc; border: 1px solid #cbd5e1;">
+            </div>
+
             <div id="view-fields-container">
                 <!-- Fields rendered here -->
             </div>
@@ -428,13 +438,13 @@
                     <div class="form-group">
                         <label>Type</label>
                         <select class="field-type" onchange="toggleOptions('${id}')">
-                            <option value="text" ${type === 'text' ? 'selected' : ''}>Short answer</option>
-                            <option value="textarea" ${type === 'textarea' ? 'selected' : ''}>Paragraph</option>
-                            <option value="dropdown" ${type === 'dropdown' ? 'selected' : ''}>Dropdown</option>
-                            <option value="radio" ${type === 'radio' ? 'selected' : ''}>Multiple choice (Radio)</option>
-                            <option value="checkbox" ${type === 'checkbox' ? 'selected' : ''}>Checkboxes</option>
-                            <option value="file" ${type === 'file' ? 'selected' : ''}>File upload</option>
+                            <option value="text" ${type === 'text' ? 'selected' : ''}>Short Text</option>
+                            <option value="textarea" ${type === 'textarea' ? 'selected' : ''}>Long Text (Paragraph)</option>
                             <option value="email" ${type === 'email' ? 'selected' : ''}>Email</option>
+                            <option value="dropdown" ${type === 'dropdown' ? 'selected' : ''}>Dropdown</option>
+                            <option value="radio" ${type === 'radio' ? 'selected' : ''}>Radio Buttons</option>
+                            <option value="checkbox" ${type === 'checkbox' ? 'selected' : ''}>Checkboxes</option>
+                            <option value="file" ${type === 'file' ? 'selected' : ''}>File Upload</option>
                             <option value="number" ${type === 'number' ? 'selected' : ''}>Number</option>
                             <option value="date" ${type === 'date' ? 'selected' : ''}>Date</option>
                         </select>
@@ -483,7 +493,11 @@
 
         addFieldBtn.addEventListener('click', createFieldRow);
 
-        createFormBtn.addEventListener('click', () => {
+        createFormBtn.addEventListener('click', async () => {
+            const originalBtnText = createFormBtn.innerHTML;
+            createFormBtn.innerHTML = 'Processing...';
+            createFormBtn.disabled = true;
+
             const fieldCards = document.querySelectorAll('.field-card');
             const fields = [];
 
@@ -500,28 +514,46 @@
                 fields.push(fieldObj);
             });
 
-            if (fields.length === 0) { alert("Please add at least one question."); return; }
-
-            // Minimalist config to keep URL short
-            const config = { f: fields };
-            const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(config))));
+            if (fields.length === 0) {
+                alert("Please add at least one question.");
+                createFormBtn.innerHTML = originalBtnText;
+                createFormBtn.disabled = false;
+                return;
+            }
 
             // DYNAMIC BID (from UI input)
             const bid = bidInput.value || "AWL-6747";
-            const bHash = btoa(bid); // Keep padding for robustness
 
-            const shortUrl = `${window.location.origin}${window.location.pathname}?c=${encoded}&b=${encodeURIComponent(bHash)}`;
+            const shortCode = Math.random().toString(36).substring(2, 7).toUpperCase();
 
-            generatedLinkInput.textContent = shortUrl;
-            linkSection.style.display = 'block';
+            if (supabaseClient) {
+                const { error: saveError } = await supabaseClient.from('leads').insert({
+                    email: `form-config2-${shortCode}@internal`,
+                    business_id: `CFG2-${shortCode}`,
+                    extra_data: config
+                });
 
-            // Button Animation
-            const originalText = createFormBtn.innerHTML;
-            createFormBtn.innerHTML = 'Generated ✓';
-            createFormBtn.classList.add('success');
+                if (saveError) {
+                    console.error("Save Error", saveError);
+                    alert("Database Error: " + saveError.message);
+                } else {
+                    const finalUrl = `${window.location.origin}${window.location.pathname}?s=${shortCode}&b=${btoa(bid)}`;
+                    generatedLinkInput.textContent = finalUrl;
+                    linkSection.style.display = 'block';
+
+                    // Button Animation
+                    createFormBtn.innerHTML = 'Generated ✓';
+                    createFormBtn.classList.add('success');
+                }
+            } else {
+                alert("Supabase not connected.");
+            }
+
+            createFormBtn.disabled = false;
+            if (!linkSection.style.display) createFormBtn.innerHTML = originalBtnText;
 
             setTimeout(() => {
-                createFormBtn.innerHTML = originalText;
+                createFormBtn.innerHTML = originalBtnText;
                 createFormBtn.classList.remove('success');
             }, 3000);
         });
@@ -535,41 +567,36 @@
 
         async function initApp() {
             const params = new URLSearchParams(window.location.search);
-            const encoded = params.get('c'); // Use compact param 'c'
+            const shortCode = params.get('s');
+            const encoded = params.get('c');
 
             // Initialize Supabase Client
-            const finalUrl = GLOBAL_SUPABASE_CONFIG.url;
-            const finalKey = GLOBAL_SUPABASE_CONFIG.key;
+            const finalUrl = window.ENV_SUPABASE_URL;
+            const finalKey = window.ENV_SUPABASE_KEY;
             if (finalUrl && finalKey && !finalUrl.includes('PLACEHOLDER') && finalUrl !== "") {
                 supabaseClient = supabase.createClient(finalUrl, finalKey);
             }
 
-            if (encoded) {
+            if (shortCode && supabaseClient) {
+                try {
+                    const { data, error } = await supabaseClient.from('leads').select('extra_data').eq('business_id', `CFG2-${shortCode}`).single();
+                    if (data) currentFormConfig = data.extra_data;
+                } catch (e) { console.error("Short code load error", e); }
+            } else if (encoded) {
                 if (document.getElementById('nav-container')) document.getElementById('nav-container').style.display = 'none';
                 try {
                     const raw = atob(encoded.replace(/ /g, '+'));
-                    try {
-                        currentFormConfig = JSON.parse(decodeURIComponent(escape(raw)));
-                    } catch (e) {
-                        currentFormConfig = JSON.parse(raw);
-                    }
-
-                    // FETCH BID DYNAMICALLY from table if 'lid' or 'id' is provided
-                    const lid = params.get('lid') || params.get('id');
-                    if (lid && supabaseClient) {
-                        try {
-                            const { data, error } = await supabaseClient.from('leads').select('business_id').eq('id', lid).single();
-                            if (data && data.business_id) {
-                                window.DYNAMIC_BID = data.business_id;
-                                console.log("Dynamic BID loaded:", window.DYNAMIC_BID);
-                            }
-                        } catch (err) { console.error("Lookup error", err); }
-                    }
-
-                    renderForm(currentFormConfig);
+                    currentFormConfig = JSON.parse(decodeURIComponent(escape(raw)));
                 } catch (e) { console.error("Config error", e); }
+            }
+
+            if (currentFormConfig) {
+                renderForm(currentFormConfig);
             } else {
-                createFieldRow("Email", "email");
+                // Builder mode - add default Email field
+                if (!shortCode && !encoded) {
+                    createFieldRow("Email", "email");
+                }
             }
         }
 
@@ -577,7 +604,7 @@
             console.log("Rendering Form with config:", config);
             builderView.style.display = 'none';
             formView.style.display = 'block';
-            document.getElementById('view-title').textContent = "Step 2: Final Submission";
+            document.getElementById('view-title').textContent = "Form Submission";
             document.getElementById('view-desc').textContent = "Please complete the final details.";
 
             const container = document.getElementById('view-fields-container');
@@ -591,6 +618,10 @@
 
             const urlParams = new URLSearchParams(window.location.search);
             const prefilledEmail = urlParams.get('email') || "";
+
+            // Pre-fill static email field if present
+            const staticMail = document.getElementById('user-email-static');
+            if (staticMail) staticMail.value = prefilledEmail;
 
             questions.forEach((field, index) => {
                 const card = document.createElement('div');
@@ -749,7 +780,8 @@
                         ...(existingExtra.Form2 || {}),
                         ...results,
                         completed_at: new Date().toISOString()
-                    }
+                    },
+                    probability_score: 90
                 };
 
                 const { error: dbError } = await supabaseClient.from('leads').update({ extra_data: updatedExtra }).eq('id', lead.id);
@@ -761,6 +793,12 @@
         });
 
         initApp();
+
+        // Add default Email field if in builder mode (no URL params)
+        const urlCheck = new URLSearchParams(window.location.search);
+        if (!urlCheck.has('s') && !urlCheck.has('c')) {
+            createFieldRow("Email", "email");
+        }
     </script>
 </body>
 

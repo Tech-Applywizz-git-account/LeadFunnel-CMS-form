@@ -4,5 +4,11 @@
     "cleanUrls": true,
     "buildCommand": "npm run build",
     "outputDirectory": "./",
-    "framework": null
+    "framework": null,
+    "crons": [
+        {
+            "path": "/api/process-scheduled-emails",
+            "schedule": "* * * * *"
+        }
+    ]
 }
