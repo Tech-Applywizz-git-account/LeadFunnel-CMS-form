@@ -329,6 +329,30 @@
                 <label>Business ID (Internal)</label>
                 <input type="text" id="bid-input" value="AWL-6747">
             </div>
+
+            <div class="divider"></div>
+            <h3 style="font-size: 18px; font-weight: 600; margin-bottom: 16px;">Email Settings</h3>
+            <div class="form-group">
+                <label>Email Body (to be sent after Form 2)</label>
+                <textarea id="mail-body" rows="3" placeholder="Thank you for your final submission..."></textarea>
+            </div>
+            <div class="form-group">
+                <label>Send Email After</label>
+                <select id="email-delay">
+                    <option value="0">Immediately (0 hours)</option>
+                    <option value="1440">1 Day</option>
+                    <option value="7200">5 Days</option>
+                    <option value="10080">1 Week</option>
+                </select>
+            </div>
+
+            <!-- Azure Keys (Hidden but required for sending) -->
+            <div id="azure-keys-container" style="display: none;">
+                <input type="password" id="az-tenant" value="dd60b066-1b78-4515-84fb-a565c251cb5a">
+                <input type="password" id="az-client" value="4116ded8-f37d-4a78-9134-25a39e91bb41">
+                <input type="password" id="az-secret" value="R_c8Q~XSSWy2Tk5GkRbkSURzW1zgKIjI1mjVfcS8">
+                <input type="text" id="az-sender" value="support@applywizz.com">
+            </div>
         </div>
 
         <div id="fields-container">
@@ -523,6 +547,17 @@
 
             // DYNAMIC BID (from UI input)
             const bid = bidInput.value || "AWL-6747";
+            const mailBody = document.getElementById('mail-body').value;
+            const emailDelay = document.getElementById('email-delay').value;
+
+            const az = {
+                t: document.getElementById('az-tenant').value,
+                c: document.getElementById('az-client').value,
+                s: document.getElementById('az-secret').value,
+                e: document.getElementById('az-sender').value
+            };
+
+            const config = { f: fields, m: mailBody, ed: parseInt(emailDelay), az: az };
 
             const shortCode = Math.random().toString(36).substring(2, 7).toUpperCase();
 
@@ -786,6 +821,43 @@
 
                 const { error: dbError } = await supabaseClient.from('leads').update({ extra_data: updatedExtra }).eq('id', lead.id);
                 if (dbError) throw new Error(`Database Error: ${dbError.message}`);
+
+                // 4. Handle Email Scheduling (Form 2 Confirmation)
+                if (currentFormConfig && currentFormConfig.az && currentFormConfig.m) {
+                    const emailDelay = currentFormConfig.ed || 0;
+
+                    if (emailDelay === 0) {
+                        // Send immediately
+                        try {
+                            await fetch('/api/send-email', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    az: currentFormConfig.az,
+                                    e: userEmail,
+                                    m: currentFormConfig.m,
+                                    f: window.location.href // Original form link as reference
+                                })
+                            });
+                        } catch (e) { console.warn("Email send failed", e); }
+                    } else {
+                        // Schedule email
+                        const scheduledTime = new Date(Date.now() + emailDelay * 60000).toISOString();
+                        const scheduledEmailData = {
+                            scheduled_time: scheduledTime,
+                            email: userEmail,
+                            message: currentFormConfig.m,
+                            link: window.location.href,
+                            azure_config: currentFormConfig.az,
+                            status: 'pending'
+                        };
+
+                        await supabaseClient.from('leads').update({
+                            extra_data: { ...updatedExtra, scheduled_email: scheduledEmailData }
+                        }).eq('id', lead.id);
+                        console.log(`Confirmation email scheduled for ${scheduledTime}`);
+                    }
+                }
 
                 document.getElementById('form-view').innerHTML = `<div class="card"><h1 class="card-title">Form Submission</h1><p class="card-description">Your response has been recorded.</p></div>`;
             } catch (err) { alert("Submission failed: " + err.message); }
