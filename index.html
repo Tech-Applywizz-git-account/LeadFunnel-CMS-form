@@ -208,24 +208,13 @@
     <div class="container grid-layout" id="builder-view">
         <div class="column-left">
             <div class="card main-card">
-                <h1 class="card-title">Setup Questions</h1>
-                <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 20px;">Add questions for the
-                    end-user.</p>
+                <h1 class="card-title">Form Configuration</h1>
+                <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 20px;">Configure your first form and
+                    the email to be sent after submission.</p>
 
-                <div class="form-group">
-                    <label>Business ID (BID)</label>
-                    <input type="text" id="admin-bid" placeholder="e.g. AWL-6747" value="AWL-6747">
-                </div>
-                <div class="form-group">
-                    <label>Lead Email</label>
-                    <input type="email" id="admin-email" placeholder="lead@example.com" oninput="syncEmail(this.value)">
-                </div>
-                <div class="form-group">
-                    <label>Probability Score</label>
-                    <select id="admin-prob">
-                        <option value="60">60</option>
-                        <option value="90">90</option>
-                    </select>
+                <div class="form-group" style="display: none;">
+                    <label>Business ID (Internal)</label>
+                    <input type="text" id="admin-bid" value="AWL-6747">
                 </div>
 
                 <div id="q-container"></div>
@@ -256,31 +245,20 @@
                     submits.</p>
 
                 <div class="form-group">
-                    <label>Recipient (Mapped from Left)</label>
-                    <input type="email" id="mapped-email" readonly style="opacity: 0.7;">
-                </div>
-                <div class="form-group">
-                    <label>Email Body</label>
+                    <label>Email Body (to be sent after Form 1)</label>
                     <textarea id="mail-body" rows="4"
-                        placeholder="Hi, thank you for submitting. Click below to proceed..."></textarea>
+                        placeholder="Hi, thank you for submitting. Click below to proceed to the next step..."></textarea>
                 </div>
                 <div class="form-group">
-                    <label>First Form Link (from index.html)</label>
-                    <input type="text" id="first-form-link" placeholder="Paste link generated from index.html here">
+                    <label>Second Form Link</label>
+                    <input type="text" id="second-form-link" placeholder="Paste link to second_form.html here">
                 </div>
 
-                <div
-                    style="background: rgba(16, 185, 129, 0.05); padding: 15px; border-radius: 12px; border: 1px solid rgba(16,185,129,0.2);">
-                    <p style="font-weight: bold; font-size: 13px; margin-bottom: 10px;">Azure Keys (Hidden from User)
-                    </p>
-                    <input type="password" id="az-tenant" value="dd60b066-1b78-4515-84fb-a565c251cb5a"
-                        style="margin-bottom: 8px; font-size: 12px;" placeholder="Tenant ID">
-                    <input type="password" id="az-client" value="4116ded8-f37d-4a78-9134-25a39e91bb41"
-                        style="margin-bottom: 8px; font-size: 12px;" placeholder="Client ID">
-                    <input type="password" id="az-secret" value="R_c8Q~XSSWy2Tk5GkRbkSURzW1zgKIjI1mjVfcS8"
-                        style="margin-bottom: 8px; font-size: 12px;" placeholder="Secret Key">
-                    <input type="text" id="az-sender" value="support@applywizz.com" style="font-size: 12px;"
-                        placeholder="Sender Email">
+                <div id="azure-keys-container" style="display: none;">
+                    <input type="password" id="az-tenant" value="dd60b066-1b78-4515-84fb-a565c251cb5a">
+                    <input type="password" id="az-client" value="4116ded8-f37d-4a78-9134-25a39e91bb41">
+                    <input type="password" id="az-secret" value="R_c8Q~XSSWy2Tk5GkRbkSURzW1zgKIjI1mjVfcS8">
+                    <input type="text" id="az-sender" value="support@applywizz.com">
                 </div>
             </div>
         </div>
@@ -318,7 +296,7 @@
 
         function syncEmail(v) { document.getElementById('mapped-email').value = v; }
 
-        function addQ() {
+        function addQ(label = "", type = "text") {
             qCount++;
             const id = `q-card-${qCount}`;
             const div = document.createElement('div');
@@ -329,19 +307,20 @@
                 <button onclick="this.parentElement.remove()" style="position: absolute; top: 10px; right: 10px; color: #ef4444; border: none; background: none; cursor: pointer; font-size: 20px; font-weight: bold;">&times;</button>
                 <div class="form-group" style="margin-bottom: 12px;">
                     <label style="font-size: 13px;">Question Title</label>
-                    <input type="text" class="q-label" placeholder="e.g. What is your name?" style="padding: 8px;">
+                    <input type="text" class="q-label" placeholder="e.g. What is your name?" style="padding: 8px;" value="${label}">
                 </div>
                 <div class="form-group" style="margin-bottom: 12px;">
                     <label style="font-size: 13px;">Field Type</label>
                     <select class="q-type" style="padding: 8px;" onchange="toggleQOptions('${id}')">
-                        <option value="text">Short Text</option>
-                        <option value="textarea">Long Text (Paragraph)</option>
-                        <option value="dropdown">Dropdown</option>
-                        <option value="radio">Radio Buttons</option>
-                        <option value="checkbox">Checkboxes</option>
-                        <option value="file">File Upload</option>
-                        <option value="number">Number</option>
-                        <option value="date">Date</option>
+                        <option value="text" ${type === 'text' ? 'selected' : ''}>Short Text</option>
+                        <option value="textarea" ${type === 'textarea' ? 'selected' : ''}>Long Text (Paragraph)</option>
+                        <option value="email" ${type === 'email' ? 'selected' : ''}>Email</option>
+                        <option value="dropdown" ${type === 'dropdown' ? 'selected' : ''}>Dropdown</option>
+                        <option value="radio" ${type === 'radio' ? 'selected' : ''}>Radio Buttons</option>
+                        <option value="checkbox" ${type === 'checkbox' ? 'selected' : ''}>Checkboxes</option>
+                        <option value="file" ${type === 'file' ? 'selected' : ''}>File Upload</option>
+                        <option value="number" ${type === 'number' ? 'selected' : ''}>Number</option>
+                        <option value="date" ${type === 'date' ? 'selected' : ''}>Date</option>
                     </select>
                 </div>
                 <div class="q-options-area" style="display: none; border-top: 1px dashed #cbd5e1; padding-top: 12px; margin-top: 12px;">
@@ -356,6 +335,7 @@
                 </div>
             `;
             document.getElementById('q-container').appendChild(div);
+            toggleQOptions(id);
         }
 
         function toggleQOptions(id) {
@@ -381,9 +361,8 @@
             console.log("Generating Link...");
             try {
                 const bid = document.getElementById('admin-bid').value;
-                const email = document.getElementById('admin-email').value;
                 const mailBody = document.getElementById('mail-body').value;
-                const firstLink = document.getElementById('first-form-link').value;
+                const secondLink = document.getElementById('second-form-link').value;
 
                 const az = {
                     t: document.getElementById('az-tenant') ? document.getElementById('az-tenant').value : "",
@@ -406,12 +385,7 @@
                     return field;
                 });
 
-                const prob = document.getElementById('admin-prob').value;
-
-                // Validation removed per user request (BID/Email can be dynamic)
-                // if (!bid || !email) { alert("Enter BID and Email"); return; }
-
-                const cfg = { b: bid, e: email, p: prob, m: mailBody, fLink: firstLink, az: az, qs: qs };
+                const cfg = { b: bid, m: mailBody, sLink: secondLink, az: az, qs: qs };
                 console.log("Config Object:", cfg);
                 const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(cfg))));
                 const link = `${window.location.origin}${window.location.pathname}?c=${encoded}`;
@@ -435,6 +409,8 @@
             const cStr = params.get('c');
             if (!cStr) {
                 if (document.getElementById('nav-container')) document.getElementById('nav-container').style.display = 'flex';
+                // Add default Email question
+                addQ("Email", "email");
                 return;
             }
 
@@ -454,28 +430,7 @@
 
                 const container = document.getElementById('end-user-fields');
                 container.innerHTML = "";
-
-                // Fetch Dynamic BID and Email if lid is provided
-                const lid = params.get('lid') || params.get('id');
-                if (lid && supabaseClient) {
-                    try {
-                        const { data } = await supabaseClient.from('leads').select('business_id, email').eq('id', lid).single();
-                        if (data) {
-                            if (data.business_id) window.DYNAMIC_BID = data.business_id;
-                            if (data.email) window.DYNAMIC_EMAIL = data.email;
-                        }
-                    } catch (e) { console.warn("Dynamic lookup failed", e); }
-                }
-
-                // Detect questions: Check qs (priority) then f (backward compatibility)
                 const questions = (Array.isArray(config.qs) ? config.qs : (Array.isArray(config.f) ? config.f : []));
-                console.log("Found questions:", questions);
-
-                if (questions.length === 0) {
-                    console.log("No questions found in config.");
-                    container.innerHTML = "<p style='color: #666; font-style: italic;'>No questions have been added to this form yet.</p>";
-                    return;
-                }
 
                 questions.forEach((q, i) => {
                     const label = q.l || q.n || "Question";
@@ -517,22 +472,45 @@
             const btn = document.getElementById('submit-btn');
             const load = document.getElementById('loading');
 
-            // Resolve BID: Priority 1: DYNAMIC_BID, Priority 2: config.b, Priority 3: URL param 'b'
-            let bid = window.DYNAMIC_BID || (config ? config.b : null);
-            if (!bid) {
-                const bParam = new URLSearchParams(window.location.search).get('b');
-                if (bParam) { try { bid = atob(decodeURIComponent(bParam).replace(/ /g, '+')); } catch (e) { bid = bParam; } }
+            const formData = new FormData(e.target);
+            let userEmail = formData.get('user_email');
+
+            // If not found (new builder logic), look for q_0 if it's an email
+            if (!userEmail) {
+                const questions = config.qs || config.f || [];
+                const emailIdx = questions.findIndex(q => (q.l || q.n || "").toLowerCase().includes("email"));
+                if (emailIdx !== -1) userEmail = formData.get(`q_${emailIdx}`);
             }
 
-            if (!bid) return alert("Missing Business ID (BID)");
+            if (!userEmail) return alert("Email is mandatory");
 
             btn.disabled = true; load.style.display = 'block';
 
-            const formData = new FormData(e.target);
-            const results = {};
-            const questions = config.qs || config.f || [];
-
             try {
+                // 1. Find the latest lead record with this email
+                if (!supabaseClient) throw new Error("Supabase client not initialized");
+
+                // Get BID from config or URL
+                let bid = config ? config.b : null;
+                if (!bid) {
+                    const bParam = new URLSearchParams(window.location.search).get('b');
+                    if (bParam) { try { bid = atob(decodeURIComponent(bParam).replace(/ /g, '+')); } catch (e) { bid = bParam; } }
+                }
+
+                const query = supabaseClient.from('leads').select('id, extra_data').eq('email', userEmail);
+                if (bid) query.eq('business_id', bid); // Scope by BID if available
+
+                const { data: leads, error: fetchError } = await query.order('updated_at', { ascending: false }).limit(1);
+
+                if (fetchError) throw new Error(`Lead Lookup Error: ${fetchError.message}`);
+                if (!leads || leads.length === 0) throw new Error("No record found with this email in our database.");
+
+                const lead = leads[0];
+                const leadId = lead.id;
+
+                // 2. Prepare Form Data
+                const results = {};
+                const questions = config.qs || config.f || [];
                 for (let i = 0; i < questions.length; i++) {
                     const q = questions[i];
                     const label = q.l || q.n || "Question";
@@ -542,8 +520,8 @@
                         results[label] = formData.getAll(fieldName);
                     } else if (q.t === 'file') {
                         const val = formData.get(fieldName);
-                        if (val && val.size > 0 && supabaseClient) {
-                            const path = `${bid}/${Date.now()}-${val.name}`;
+                        if (val && val.size > 0) {
+                            const path = `${bid || 'global'}/${Date.now()}-${val.name}`;
                             const { error: uploadError } = await supabaseClient.storage
                                 .from('files_by_form-LEADS')
                                 .upload(path, val, { upsert: true });
@@ -556,43 +534,42 @@
                     }
                 }
 
-                // Add Probability Score (Hidden)
-                if (config.p) {
-                    results['probability_score'] = parseInt(config.p);
-                }
-
-                // Save to Supabase
-                if (supabaseClient) {
-                    const { data: leadData } = await supabaseClient.from('leads').select('extra_data').eq('business_id', bid).single();
-                    const existingExtra = leadData ? (leadData.extra_data || {}) : {};
-
-                    // Nest under Leadsfunnel
-                    const existingLeadsfunnel = existingExtra.Leadsfunnel || {};
-                    const updatedLeadsfunnel = { ...existingLeadsfunnel, ...results };
-
-                    const updatedExtra = { ...existingExtra, Leadsfunnel: updatedLeadsfunnel };
-
-                    await supabaseClient.from('leads').update({ extra_data: updatedExtra }).eq('business_id', bid);
-                }
-
-                // If config has AZ keys, it means it's an Automation Flow (index.html's former logic)
-                if (config.az && config.az.s) {
-                    const recipient = config.e || window.DYNAMIC_EMAIL;
-                    if (recipient) {
-                        const apiRes = await fetch('/api/send-email', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ az: config.az, e: recipient, m: config.m, f: config.fLink || config.f })
-                        });
-                        const apiData = await apiRes.json();
-                        if (!apiRes.ok) console.warn("Failed to send email", apiData.error);
-                    } else {
-                        console.warn("Skipping email: No recipient found (config.e or DYNAMIC_EMAIL missing).");
+                // 3. Update extra_data (Appending/Merging under Form1)
+                const existingExtra = lead.extra_data || {};
+                const updatedExtra = {
+                    ...existingExtra,
+                    Form1: {
+                        ...(existingExtra.Form1 || {}),
+                        ...results,
+                        submitted_at: new Date().toISOString()
                     }
+                };
+
+                const { error: updateError } = await supabaseClient.from('leads').update({ extra_data: updatedExtra }).eq('id', leadId);
+                if (updateError) throw new Error(`Update Error: ${updateError.message}`);
+
+                // 4. Send Email with Second Form Link
+                if (config.az && config.az.s) {
+                    const secondLink = config.sLink + (config.sLink.includes('?') ? '&' : '?') + `email=${encodeURIComponent(userEmail)}`;
+                    const apiRes = await fetch('/api/send-email', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            az: config.az,
+                            e: userEmail,
+                            m: config.m,
+                            f: secondLink
+                        })
+                    });
+                    const apiData = await apiRes.json();
+                    if (!apiRes.ok) console.warn("Failed to send email", apiData.error);
                 }
 
-                document.getElementById('form-view').innerHTML = `<div class="card"><h1 class="card-title">Success</h1><p>Your response has been recorded.</p></div>`;
-            } catch (err) { alert(err.message); }
+                document.getElementById('form-view').innerHTML = `<div class="card"><h1 class="card-title">Success</h1><p>Thank you! An email has been sent to <b>${userEmail}</b> with the next steps.</p></div>`;
+            } catch (err) {
+                alert(err.message);
+                console.error(err);
+            }
             finally { btn.disabled = false; load.style.display = 'none'; }
         };
 

@@ -323,18 +323,11 @@
 
     <div class="container" id="builder-view">
         <div class="card main-card">
-            <h1 class="card-title">Applywizz Form</h1>
-            <p class="card-description">your career partner</p>
-            <div class="form-group" style="margin-top: 20px;">
-                <label>Business ID (BID)</label>
-                <input type="text" id="bid-input" placeholder="e.g. AWL-6747" style="border: 1px solid var(--primary);">
-            </div>
-            <div class="form-group">
-                <label>Probability Score</label>
-                <select id="prob-input" style="border: 1px solid var(--primary);">
-                    <option value="60">60</option>
-                    <option value="90">90</option>
-                </select>
+            <h1 class="card-title">Second Form Configuration</h1>
+            <p class="card-description">Configure the second step of your workflow.</p>
+            <div class="form-group" style="display: none;">
+                <label>Business ID (Internal)</label>
+                <input type="text" id="bid-input" value="AWL-6747">
             </div>
         </div>
 
@@ -413,7 +406,7 @@
             bidInput.value = urlParams.get('bid') || "AWL-6747";
         }
 
-        function createFieldRow() {
+        function createFieldRow(name = "", type = "text") {
             fieldCount++;
             const id = `field-${fieldCount}`;
             const row = document.createElement('div');
@@ -423,20 +416,20 @@
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 12px;">
                     <div class="form-group">
                         <label>Question</label>
-                        <input type="text" placeholder="Question Title" class="field-name">
+                        <input type="text" placeholder="Question Title" class="field-name" value="${name}">
                     </div>
                     <div class="form-group">
                         <label>Type</label>
                         <select class="field-type" onchange="toggleOptions('${id}')">
-                            <option value="text">Short answer</option>
-                            <option value="textarea">Paragraph</option>
-                            <option value="dropdown">Dropdown</option>
-                            <option value="radio">Multiple choice (Radio)</option>
-                            <option value="checkbox">Checkboxes</option>
-                            <option value="file">File upload</option>
-                            <option value="email">Email</option>
-                            <option value="number">Number</option>
-                            <option value="date">Date</option>
+                            <option value="text" ${type === 'text' ? 'selected' : ''}>Short answer</option>
+                            <option value="textarea" ${type === 'textarea' ? 'selected' : ''}>Paragraph</option>
+                            <option value="dropdown" ${type === 'dropdown' ? 'selected' : ''}>Dropdown</option>
+                            <option value="radio" ${type === 'radio' ? 'selected' : ''}>Multiple choice (Radio)</option>
+                            <option value="checkbox" ${type === 'checkbox' ? 'selected' : ''}>Checkboxes</option>
+                            <option value="file" ${type === 'file' ? 'selected' : ''}>File upload</option>
+                            <option value="email" ${type === 'email' ? 'selected' : ''}>Email</option>
+                            <option value="number" ${type === 'number' ? 'selected' : ''}>Number</option>
+                            <option value="date" ${type === 'date' ? 'selected' : ''}>Date</option>
                         </select>
                     </div>
                 </div>
@@ -502,11 +495,8 @@
 
             if (fields.length === 0) { alert("Please add at least one question."); return; }
 
-            // Probability Score
-            const prob = document.getElementById('prob-input').value;
-
             // Minimalist config to keep URL short
-            const config = { f: fields, p: prob };
+            const config = { f: fields };
             const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(config))));
 
             // DYNAMIC BID (from UI input)
@@ -572,7 +562,7 @@
                     renderForm(currentFormConfig);
                 } catch (e) { console.error("Config error", e); }
             } else {
-                createFieldRow();
+                createFieldRow("Email", "email");
             }
         }
 
@@ -580,8 +570,8 @@
             console.log("Rendering Form with config:", config);
             builderView.style.display = 'none';
             formView.style.display = 'block';
-            document.getElementById('view-title').textContent = "Applywizz Submission";
-            document.getElementById('view-desc').textContent = "your career partner";
+            document.getElementById('view-title').textContent = "Step 2: Final Submission";
+            document.getElementById('view-desc').textContent = "Please complete the final details.";
 
             const container = document.getElementById('view-fields-container');
             container.innerHTML = '';
@@ -589,9 +579,11 @@
             const questions = (Array.isArray(config.f) ? config.f : (Array.isArray(config.qs) ? config.qs : []));
             if (questions.length === 0) {
                 console.warn("No questions found in config to render.");
-                container.innerHTML = "<p style='color: #666; font-style: italic;'>No questions have been added to this form yet.</p>";
                 return;
             }
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const prefilledEmail = urlParams.get('email') || "";
 
             questions.forEach((field, index) => {
                 const card = document.createElement('div');
@@ -607,6 +599,7 @@
                 const fieldId = `field_${index}`;
                 const type = field.t;
                 const options = field.o || [];
+                const value = (label.toLowerCase().includes("email") ? prefilledEmail : "");
 
                 if (type === 'textarea') {
                     const el = document.createElement('textarea');
@@ -665,6 +658,7 @@
                     const el = document.createElement('input');
                     el.type = type;
                     el.name = fieldId;
+                    el.value = value;
                     el.placeholder = 'Your answer';
                     el.required = true;
                     el.style.background = "#f8fafc";
@@ -679,22 +673,40 @@
         dynamicForm.addEventListener('submit', async (e) => {
             e.preventDefault();
 
-            // Resolve BID: Priority 1: DYNAMIC_BID, Priority 2: config from URL parameter 'b'
-            let bid = window.DYNAMIC_BID;
-            if (!bid) {
-                const bParam = new URLSearchParams(window.location.search).get('b');
-                if (bParam) { try { bid = atob(decodeURIComponent(bParam).replace(/ /g, '+')); } catch (e) { bid = bParam; } }
+            const formData = new FormData(dynamicForm);
+            let userEmail = formData.get('user_email');
+
+            if (!userEmail) {
+                const questions = (currentFormConfig.f || currentFormConfig.qs || []);
+                const emailIdx = questions.findIndex(q => (q.n || q.l || "").toLowerCase().includes("email"));
+                if (emailIdx !== -1) userEmail = formData.get(`field_${emailIdx}`);
             }
 
-            if (!bid) { alert("Error: Missing Business ID (BID). Link is either invalid or incomplete."); return; }
+            if (!userEmail) { alert("Error: Email is required."); return; }
+
             if (!supabaseClient) { alert("Error: Supabase not configured."); return; }
 
             loadingOverlay.style.display = 'flex';
-            const formData = new FormData(dynamicForm);
             const results = {};
             const questions = currentFormConfig.f || currentFormConfig.qs || [];
 
             try {
+                // 1. Find latest lead by email
+                let bid = "";
+                const bParam = new URLSearchParams(window.location.search).get('b');
+                if (bParam) { try { bid = atob(decodeURIComponent(bParam).replace(/ /g, '+')); } catch (e) { bid = bParam; } }
+
+                const query = supabaseClient.from('leads').select('id, extra_data').eq('email', userEmail);
+                if (bid) query.eq('business_id', bid);
+
+                const { data: leads, error: fetchError } = await query.order('updated_at', { ascending: false }).limit(1);
+
+                if (fetchError) throw new Error(`Fetch Error: ${fetchError.message}`);
+                if (!leads || leads.length === 0) throw new Error("No existing record found for this email. Please complete the first form first.");
+
+                const lead = leads[0];
+
+                // 2. Process Form Results
                 for (let i = 0; i < questions.length; i++) {
                     const q = questions[i];
                     const label = q.n || q.l || "Question";
@@ -705,7 +717,7 @@
                     } else if (q.t === 'file') {
                         const val = formData.get(fieldName);
                         if (val && val.size > 0) {
-                            const path = `${bid}/${Date.now()}-${val.name}`;
+                            const path = `${bid || 'global'}/${Date.now()}-${val.name}`;
                             const { error: uploadError } = await supabaseClient.storage
                                 .from('files_by_form-LEADS')
                                 .upload(path, val, { upsert: true });
@@ -718,32 +730,19 @@
                     }
                 }
 
-                // Add Probability Score (Hidden)
-                if (currentFormConfig.p) {
-                    results['probability_score'] = parseInt(currentFormConfig.p);
-                }
+                // 3. Update extra_data (Merging under Form2)
+                const existingExtra = lead.extra_data || {};
+                const updatedExtra = {
+                    ...existingExtra,
+                    Form2: {
+                        ...(existingExtra.Form2 || {}),
+                        ...results,
+                        completed_at: new Date().toISOString()
+                    }
+                };
 
-                // FETCH EXISTING DATA TO APPEND
-                const { data: leadRecord } = await supabaseClient.from('leads').select('extra_data').eq('business_id', bid).single();
-                const existingExtra = leadRecord ? (leadRecord.extra_data || {}) : {};
-
-                // Nest under Leadsfunnel
-                const existingLeadsfunnel = existingExtra.Leadsfunnel || {};
-                const updatedLeadsfunnel = { ...existingLeadsfunnel, ...results };
-
-                const updatedExtraData = { ...existingExtra, Leadsfunnel: updatedLeadsfunnel };
-
-                const { error: dbError } = await supabaseClient.from('leads').update({ extra_data: updatedExtraData }).eq('business_id', bid);
+                const { error: dbError } = await supabaseClient.from('leads').update({ extra_data: updatedExtra }).eq('id', lead.id);
                 if (dbError) throw new Error(`Database Error: ${dbError.message}`);
-
-                // If config has AZ keys, send email (Universal Logic)
-                if (currentFormConfig.az && currentFormConfig.az.s) {
-                    await fetch('/api/send-email', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ az: currentFormConfig.az, e: currentFormConfig.e, m: currentFormConfig.m, f: currentFormConfig.f || currentFormConfig.qs })
-                    });
-                }
 
                 document.getElementById('form-view').innerHTML = `<div class="card"><h1 class="card-title">Applywizz Submission</h1><p class="card-description">Your response has been recorded.</p></div>`;
             } catch (err) { alert("Submission failed: " + err.message); }
