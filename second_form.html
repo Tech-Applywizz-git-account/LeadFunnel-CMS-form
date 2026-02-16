@@ -742,19 +742,25 @@
                     if (bParam) { try { bid = atob(decodeURIComponent(bParam).replace(/ /g, '+')); } catch (e) { bid = bParam; } }
                 }
 
-                // Scoping by email (case-insensitive)
-                const query = supabaseClient.from('leads').select('id, extra_data').ilike('email', userEmail);
+                // Scoping by email (case-insensitive), excluding config records
+                const query = supabaseClient.from('leads')
+                    .select('id, extra_data')
+                    .ilike('email', userEmail)
+                    .not('email', 'like', '%@internal');
 
                 const { data: leads, error: fetchError } = await query.order('created_at', { ascending: false }).limit(1);
 
                 if (fetchError) throw new Error(`Fetch Error: ${fetchError.message}`);
+
                 if (!leads || leads.length === 0) {
-                    showToast("Email not found. Please use the email registered in our system.");
+                    console.warn(`No lead found for: ${userEmail}`);
+                    alert("Email not registered. Please use an email already in our system.");
                     loadingOverlay.style.display = 'none';
                     return;
                 }
 
                 const lead = leads[0];
+                console.log("Matched lead ID:", lead.id);
 
                 // 2. Process Form Results
                 for (let i = 0; i < questions.length; i++) {
