@@ -509,6 +509,7 @@
             }
 
             if (!userEmail) return alert("Email is mandatory");
+            userEmail = userEmail.trim().toLowerCase();
 
             btn.disabled = true; load.style.display = 'block';
 
@@ -523,8 +524,9 @@
                     if (bParam) { try { bid = atob(decodeURIComponent(bParam).replace(/ /g, '+')); } catch (e) { bid = bParam; } }
                 }
 
-                const query = supabaseClient.from('leads').select('id, extra_data').eq('email', userEmail);
-                if (bid) query.eq('business_id', bid); // Scope by BID if available
+                // Scoping by email (case-insensitive)
+                const query = supabaseClient.from('leads').select('id, extra_data').ilike('email', userEmail);
+                // Removed strict business_id scoping as requested
 
                 const { data: leads, error: fetchError } = await query.order('created_at', { ascending: false }).limit(1);
 
