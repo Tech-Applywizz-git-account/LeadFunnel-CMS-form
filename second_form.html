@@ -483,7 +483,11 @@
 
         addFieldBtn.addEventListener('click', createFieldRow);
 
-        createFormBtn.addEventListener('click', () => {
+        createFormBtn.addEventListener('click', async () => {
+            const originalBtnText = createFormBtn.innerHTML;
+            createFormBtn.innerHTML = 'Processing...';
+            createFormBtn.disabled = true;
+
             const fieldCards = document.querySelectorAll('.field-card');
             const fields = [];
 
@@ -492,7 +496,7 @@
                 const type = card.querySelector('.field-type').value;
                 if (!name) return;
 
-                const fieldObj = { n: name, t: type }; // Short keys
+                const fieldObj = { n: name, t: type };
                 if (['dropdown', 'radio', 'checkbox'].includes(type)) {
                     const optInputs = card.querySelectorAll('.opt-val');
                     fieldObj.o = Array.from(optInputs).map(i => i.value).filter(v => v !== "");
@@ -500,28 +504,49 @@
                 fields.push(fieldObj);
             });
 
-            if (fields.length === 0) { alert("Please add at least one question."); return; }
-
-            // Minimalist config to keep URL short
-            const config = { f: fields };
-            const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(config))));
+            if (fields.length === 0) {
+                alert("Please add at least one question.");
+                createFormBtn.innerHTML = originalBtnText;
+                createFormBtn.disabled = false;
+                return;
+            }
 
             // DYNAMIC BID (from UI input)
             const bid = bidInput.value || "AWL-6747";
-            const bHash = btoa(bid); // Keep padding for robustness
 
-            const shortUrl = `${window.location.origin}${window.location.pathname}?c=${encoded}&b=${encodeURIComponent(bHash)}`;
+            // Include bid in config so URL stays short
+            const config = { f: fields, b: bid };
 
-            generatedLinkInput.textContent = shortUrl;
-            linkSection.style.display = 'block';
+            // Generate 5-character short code
+            const shortCode = Math.random().toString(36).substring(2, 7).toUpperCase();
 
-            // Button Animation
-            const originalText = createFormBtn.innerHTML;
-            createFormBtn.innerHTML = 'Generated ✓';
-            createFormBtn.classList.add('success');
+            if (supabaseClient) {
+                const { error: saveError } = await supabaseClient.from('leads').insert({
+                    email: `form-config2-${shortCode}@internal`,
+                    business_id: `CFG2-${shortCode}`,
+                    extra_data: config
+                });
+
+                if (saveError) {
+                    console.error("Save Error", saveError);
+                    alert("Database Error: " + saveError.message);
+                } else {
+                    const finalUrl = `${window.location.origin}${window.location.pathname}?s=${shortCode}`;
+                    generatedLinkInput.textContent = finalUrl;
+                    linkSection.style.display = 'block';
+
+                    createFormBtn.innerHTML = 'Generated ✓';
+                    createFormBtn.classList.add('success');
+                }
+            } else {
+                alert("Supabase not connected.");
+            }
+
+            createFormBtn.disabled = false;
+            if (!linkSection.style.display) createFormBtn.innerHTML = originalBtnText;
 
             setTimeout(() => {
-                createFormBtn.innerHTML = originalText;
+                createFormBtn.innerHTML = originalBtnText;
                 createFormBtn.classList.remove('success');
             }, 3000);
         });
@@ -535,7 +560,8 @@
 
         async function initApp() {
             const params = new URLSearchParams(window.location.search);
-            const encoded = params.get('c'); // Use compact param 'c'
+            const shortCode = params.get('s');
+            const encoded = params.get('c');
 
             // Initialize Supabase Client
             const finalUrl = GLOBAL_SUPABASE_CONFIG.url;
@@ -544,30 +570,39 @@
                 supabaseClient = supabase.createClient(finalUrl, finalKey);
             }
 
-            if (encoded) {
+            // Load config from short code
+            if (shortCode && supabaseClient) {
+                try {
+                    const { data, error } = await supabaseClient.from('leads').select('extra_data').eq('business_id', `CFG2-${shortCode}`).single();
+                    if (data) currentFormConfig = data.extra_data;
+                } catch (e) { console.error("Short code load error", e); }
+            }
+
+            // Fallback to base64 encoded config
+            if (!currentFormConfig && encoded) {
                 if (document.getElementById('nav-container')) document.getElementById('nav-container').style.display = 'none';
                 try {
                     const raw = atob(encoded.replace(/ /g, '+'));
-                    try {
-                        currentFormConfig = JSON.parse(decodeURIComponent(escape(raw)));
-                    } catch (e) {
-                        currentFormConfig = JSON.parse(raw);
-                    }
-
-                    // FETCH BID DYNAMICALLY from table if 'lid' or 'id' is provided
-                    const lid = params.get('lid') || params.get('id');
-                    if (lid && supabaseClient) {
-                        try {
-                            const { data, error } = await supabaseClient.from('leads').select('business_id').eq('id', lid).single();
-                            if (data && data.business_id) {
-                                window.DYNAMIC_BID = data.business_id;
-                                console.log("Dynamic BID loaded:", window.DYNAMIC_BID);
-                            }
-                        } catch (err) { console.error("Lookup error", err); }
-                    }
-
-                    renderForm(currentFormConfig);
+                    try { currentFormConfig = JSON.parse(decodeURIComponent(escape(raw))); }
+                    catch (e) { currentFormConfig = JSON.parse(raw); }
                 } catch (e) { console.error("Config error", e); }
+            }
+
+            if (shortCode || encoded) {
+                if (document.getElementById('nav-container')) document.getElementById('nav-container').style.display = 'none';
+
+                // FETCH BID DYNAMICALLY from table if 'lid' or 'id' is provided
+                const lid = params.get('lid') || params.get('id');
+                if (lid && supabaseClient) {
+                    try {
+                        const { data, error } = await supabaseClient.from('leads').select('business_id').eq('id', lid).single();
+                        if (data && data.business_id) {
+                            window.DYNAMIC_BID = data.business_id;
+                        }
+                    } catch (err) { console.error("Lookup error", err); }
+                }
+
+                if (currentFormConfig) renderForm(currentFormConfig);
             } else {
                 createFieldRow("Email", "email");
             }
@@ -700,9 +735,11 @@
 
             try {
                 // 1. Find latest lead by email
-                let bid = "";
-                const bParam = new URLSearchParams(window.location.search).get('b');
-                if (bParam) { try { bid = atob(decodeURIComponent(bParam).replace(/ /g, '+')); } catch (e) { bid = bParam; } }
+                let bid = (currentFormConfig && currentFormConfig.b) ? currentFormConfig.b : "";
+                if (!bid) {
+                    const bParam = new URLSearchParams(window.location.search).get('b');
+                    if (bParam) { try { bid = atob(decodeURIComponent(bParam).replace(/ /g, '+')); } catch (e) { bid = bParam; } }
+                }
 
                 // Scoping by email (case-insensitive)
                 const query = supabaseClient.from('leads').select('id, extra_data').ilike('email', userEmail);
@@ -711,7 +748,8 @@
 
                 if (fetchError) throw new Error(`Fetch Error: ${fetchError.message}`);
                 if (!leads || leads.length === 0) {
-                    showToast("we could found the email in the try with another mail id");
+                    showToast("Email not found. Please use the email registered in our system.");
+                    loadingOverlay.style.display = 'none';
                     return;
                 }
 
@@ -749,7 +787,8 @@
                         ...(existingExtra.Form2 || {}),
                         ...results,
                         completed_at: new Date().toISOString()
-                    }
+                    },
+                    probability_score: 90
                 };
 
                 const { error: dbError } = await supabaseClient.from('leads').update({ extra_data: updatedExtra }).eq('id', lead.id);

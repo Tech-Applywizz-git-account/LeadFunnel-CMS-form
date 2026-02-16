@@ -290,6 +290,15 @@
             <p style="color: var(--text-muted); font-size: 14px;">Please complete the form below.</p>
             <div class="divider"></div>
             <form id="end-user-form">
+                <!-- Static Email Field -->
+                <div class="card"
+                    style="padding: 24px; margin-bottom: 20px; background: white; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+                    <label
+                        style="margin-bottom: 15px; display: block; font-weight: 600; font-size: 16px; color: var(--text);">Email
+                        <span style="color: #ef4444;">*</span></label>
+                    <input type="email" name="user_email" id="user-email-static" required placeholder="Enter your email"
+                        style="background: #f8fafc; border: 1px solid #cbd5e1;">
+                </div>
                 <div id="end-user-fields"></div>
                 <div style="display: flex; gap: 12px; margin-top: 24px;">
                     <button type="submit" id="submit-btn" class="btn btn-primary" style="flex: 1;">Submit &
@@ -383,8 +392,12 @@
             list.appendChild(div);
         }
 
-        function generateLink() {
-            console.log("Generating Link...");
+        async function generateLink() {
+            const btn = document.querySelector('button[onclick="generateLink()"]');
+            const originalText = btn.textContent;
+            btn.textContent = 'Processing...';
+            btn.disabled = true;
+
             try {
                 const bid = document.getElementById('admin-bid').value;
                 const mailBody = document.getElementById('mail-body').value;
@@ -412,16 +425,30 @@
                 });
 
                 const cfg = { b: bid, m: mailBody, sLink: secondLink, az: az, qs: qs };
-                console.log("Config Object:", cfg);
-                const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(cfg))));
-                const link = `${window.location.origin}${window.location.pathname}?c=${encoded}`;
 
+                // Generate 5-character short code
+                const shortCode = Math.random().toString(36).substring(2, 7).toUpperCase();
+
+                if (supabaseClient) {
+                    const { error: saveError } = await supabaseClient.from('leads').insert({
+                        email: `form-config-${shortCode}@internal`,
+                        business_id: `CFG-${shortCode}`,
+                        extra_data: cfg
+                    });
+                    if (saveError) throw new Error(`Save Error: ${saveError.message}`);
+                }
+
+                const link = `${window.location.origin}${window.location.pathname}?s=${shortCode}`;
                 document.getElementById('link-output').value = link;
                 document.getElementById('generated-section').style.display = 'block';
-                console.log("Link generated successfully.");
+
+                btn.textContent = 'Generated ✓';
+                setTimeout(() => { btn.textContent = originalText; btn.disabled = false; }, 3000);
             } catch (err) {
                 console.error("Generate Link Error:", err);
                 alert("Error generating link: " + err.message);
+                btn.textContent = originalText;
+                btn.disabled = false;
             }
         }
 
@@ -432,13 +459,33 @@
 
         async function init() {
             const params = new URLSearchParams(window.location.search);
+            const shortCode = params.get('s');
             const cStr = params.get('c');
-            if (!cStr) {
+
+            // Load config from short code
+            if (shortCode && supabaseClient) {
+                try {
+                    const { data, error } = await supabaseClient.from('leads').select('extra_data').eq('business_id', `CFG-${shortCode}`).single();
+                    if (data) config = data.extra_data;
+                } catch (e) { console.error("Short code load error", e); }
+            }
+
+            if (!shortCode && !cStr) {
                 if (document.getElementById('nav-container')) document.getElementById('nav-container').style.display = 'flex';
-                // Add default Email question
                 addQ("Email", "email");
                 return;
             }
+
+            // If not loaded from short code, try base64
+            if (!config && cStr) {
+                try {
+                    const raw = atob(cStr.replace(/ /g, '+'));
+                    try { config = JSON.parse(decodeURIComponent(escape(raw))); }
+                    catch (e) { config = JSON.parse(raw); }
+                } catch (e) { console.error("Config parse error", e); }
+            }
+
+            if (!config) { alert("Error loading form configuration."); return; }
 
             console.log("Form config detected. Initializing End-User Form.");
             document.getElementById('builder-view').style.display = 'none';
@@ -446,13 +493,10 @@
             if (document.getElementById('nav-container')) document.getElementById('nav-container').style.display = 'none';
 
             try {
-                const raw = atob(cStr.replace(/ /g, '+')); // Fix space-to-plus corruption
-                try {
-                    config = JSON.parse(decodeURIComponent(escape(raw)));
-                } catch (e) {
-                    config = JSON.parse(raw); // Fallback for simple strings
-                }
-                console.log("Decoded Config:", config);
+                // Pre-fill email if in URL
+                const prefilledEmail = params.get('email') || '';
+                const staticMail = document.getElementById('user-email-static');
+                if (staticMail && prefilledEmail) staticMail.value = prefilledEmail;
 
                 const container = document.getElementById('end-user-fields');
                 container.innerHTML = "";
@@ -462,6 +506,9 @@
                     const label = q.l || q.n || "Question";
                     const type = q.t || "text";
                     const options = q.o || [];
+
+                    // Skip email fields since we have a static email field
+                    if (type === 'email' || label.toLowerCase().includes('email')) return;
                     const div = document.createElement('div');
                     div.className = 'card';
                     div.style.padding = '24px';
@@ -532,7 +579,8 @@
 
                 if (fetchError) throw new Error(`Lead Lookup Error: ${fetchError.message}`);
                 if (!leads || leads.length === 0) {
-                    showToast("we could found the email in the try with another mail id");
+                    showToast("Email not found. Please use the email registered in our system.");
+                    btn.disabled = false; load.style.display = 'none';
                     return;
                 }
 
@@ -573,7 +621,8 @@
                         ...(existingExtra.Form1 || {}),
                         ...results,
                         submitted_at: new Date().toISOString()
-                    }
+                    },
+                    probability_score: 60
                 };
 
                 const { error: updateError } = await supabaseClient.from('leads').update({ extra_data: updatedExtra }).eq('id', leadId);
