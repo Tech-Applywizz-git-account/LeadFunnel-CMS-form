@@ -522,6 +522,7 @@
 
             if (supabaseClient) {
                 const { error: saveError } = await supabaseClient.from('leads').insert({
+                    name: `Form2-Config-${shortCode}`,
                     email: `form-config2-${shortCode}@internal`,
                     business_id: `CFG2-${shortCode}`,
                     extra_data: config
