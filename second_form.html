@@ -754,7 +754,7 @@
                 const { error: dbError } = await supabaseClient.from('leads').update({ extra_data: updatedExtra }).eq('id', lead.id);
                 if (dbError) throw new Error(`Database Error: ${dbError.message}`);
 
-                document.getElementById('form-view').innerHTML = `<div class="card"><h1 class="card-title">Applywizz Submission</h1><p class="card-description">Your response has been recorded.</p></div>`;
+                document.getElementById('form-view').innerHTML = `<div class="card"><h1 class="card-title">Form Submission</h1><p class="card-description">Your response has been recorded.</p></div>`;
             } catch (err) { alert("Submission failed: " + err.message); }
             finally { loadingOverlay.style.display = 'none'; }
         });
