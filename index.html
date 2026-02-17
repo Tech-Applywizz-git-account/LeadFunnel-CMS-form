@@ -265,13 +265,23 @@
 
                 <div class="form-group">
                     <label>Email Body (to be sent after Form 1)</label>
-                    <textarea id="mail-body" rows="4"
-                        placeholder="Hi, thank you for submitting. Click below to proceed to the next step..."></textarea>
+                    <textarea id="mail-body" rows="6" placeholder="Hi,
+Check out our sample resume: 
+https://example.com/sample.pdf
+
+Follow this step to continue:
+https://example.com/next-step"></textarea>
+                    <p style="font-size: 11px; color: var(--text-muted); margin-top: 5px;">URLs on their own line will
+                        automatically get file/form icons.</p>
                 </div>
                 <div class="form-group">
                     <label>Second Form Link</label>
                     <input type="text" id="second-form-link" placeholder="Paste link to second_form.html here">
                 </div>
+
+                <button class="btn btn-outline"
+                    style="width: 100%; border-color: var(--secondary); color: var(--secondary);"
+                    onclick="promptTestEmail()">Send Test Email</button>
 
                 <div id="azure-keys-container" style="display: none;">
                     <input type="password" id="az-tenant" value="dd60b066-1b78-4515-84fb-a565c251cb5a">
@@ -456,6 +466,69 @@
         function copyLink() {
             navigator.clipboard.writeText(document.getElementById('link-output').value);
             alert("Link copied!");
+        }
+
+        async function promptTestEmail() {
+            const email = prompt("Enter the email address to send the test to:");
+            if (!email || !email.includes('@')) {
+                if (email) alert("Please enter a valid email address.");
+                return;
+            }
+
+            const mailBody = document.getElementById('mail-body').value;
+            const secondLink = document.getElementById('second-form-link').value;
+            const az = {
+                t: document.getElementById('az-tenant').value,
+                c: document.getElementById('az-client').value,
+                s: document.getElementById('az-secret').value,
+                e: document.getElementById('az-sender').value
+            };
+
+            if (!mailBody) {
+                alert("Please add some content to the email body first.");
+                return;
+            }
+
+            const btn = document.querySelector('button[onclick="promptTestEmail()"]');
+            const originalText = btn.textContent;
+            btn.textContent = 'Sending...';
+            btn.disabled = true;
+
+            try {
+                const response = await fetch('/api/send-email', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        az: az,
+                        e: email,
+                        m: mailBody,
+                        f: secondLink || window.location.href
+                    })
+                });
+
+                if (response.status === 404) {
+                    throw new Error("API Route Not Found. If you are running locally (e.g., Live Server), the /api routes will not work. Please deploy to Vercel or use 'vercel dev' to test email functionality.");
+                }
+
+                const text = await response.text();
+                let result;
+                try {
+                    result = JSON.parse(text);
+                } catch (e) {
+                    throw new Error("Invalid response from server. Make sure you are running in an environment that supports API routes (like Vercel).");
+                }
+
+                if (result.success) {
+                    alert(`Test email successfully sent to ${email}`);
+                } else {
+                    throw new Error(result.error || "Failed to send email");
+                }
+            } catch (err) {
+                alert("Error: " + err.message);
+            } finally {
+                btn.textContent = originalText;
+                btn.disabled = false;
+            }
         }
 
         async function init() {
