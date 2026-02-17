@@ -9,11 +9,9 @@ async function sendTestMail() {
     };
 
     const e = "Dinesh@applywizz.com";
-    const m = `hi
-here is the sample digital resume
-https://bhanu-digital-resume.vercel.app/SAMPLE_RESUME__DIGITAL_RESUME.pdf
+    const m = `HI
 
-and here is the final form link for you`;
+[digital resume](https://bhanu-digital-resume.vercel.app/SAMPLE_RESUME__DIGITAL_RESUME.pdf)`;
 
     const f = "https://lead-funnel-cms-form.vercel.app/second_form?s=CI5Y7&email=Dinesh@applywizz.com";
 
@@ -38,7 +36,7 @@ and here is the final form link for you`;
         const access_token = tokenData.access_token;
         console.log("Token obtained successfully.");
 
-        // 2. Format Body (With duplicate link prevention)
+        // 2. Format Body (Using the NEW single-pass logic)
         const formattedContent = `<div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 30px; color: #334155; line-height: 1.6; max-width: 600px; margin: auto; background-color: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0;">
                                     <div style="margin-bottom: 25px;">
                                         ${(() => {
@@ -50,7 +48,6 @@ and here is the final form link for you`;
                     const fullUrlRegex = /^(https?:\/\/[^\s]+)$/;
                     if (fullUrlRegex.test(trimmed)) {
                         const url = trimmed;
-                        // Skip rendering the card if it's the same URL used for the "digital resume" link
                         if (hasKeyword && url === firstPdfUrl) return '';
 
                         let icon = '🔗';
@@ -66,19 +63,22 @@ and here is the final form link for you`;
                                                                 <a href="${url}" style="color: #2563eb; text-decoration: none; font-weight: 600; font-size: 14px; word-break: break-all;">${url}</a>
                                                             </div>`;
                     } else {
-                        const inlineUrlRegex = /(https?:\/\/[^\s]+)/g;
-                        let linkified = line.replace(inlineUrlRegex, (url) => {
-                            if (hasKeyword && url === firstPdfUrl) return url;
-                            return `<a href="${url}" style="color: #2563eb; text-decoration: underline;">${url}</a>`;
+                        // Single-pass replacement
+                        const combinedRegex = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|(digital[_ ]resume)|(https?:\/\/[^\s]+)/gi;
+
+                        const processedLine = line.replace(combinedRegex, (match, mText, mUrl, keyword, standardUrl) => {
+                            if (mText && mUrl) {
+                                return `<a href="${mUrl}" style="color: #2563eb; text-decoration: none; font-weight: bold;">${mText} &#8599;&#65038;</a>`;
+                            } else if (keyword && firstPdfUrl) {
+                                return `<a href="${firstPdfUrl}" style="color: #2563eb; text-decoration: none; font-weight: bold;">${keyword} &#8599;&#65038;</a>`;
+                            } else if (standardUrl) {
+                                if (hasKeyword && standardUrl === firstPdfUrl) return standardUrl;
+                                return `<a href="${standardUrl}" style="color: #2563eb; text-decoration: underline;">${standardUrl}</a>`;
+                            }
+                            return match;
                         });
 
-                        if (firstPdfUrl) {
-                            const drRegex = /(digital[_ ]resume)/gi;
-                            linkified = linkified.replace(drRegex, (match) => {
-                                return `<a href="${firstPdfUrl}" style="color: #2563eb; text-decoration: none; font-weight: bold;">${match} ↗</a>`;
-                            });
-                        }
-                        return `<p style="margin: 0 0 12px 0;">${linkified || '&nbsp;'}</p>`;
+                        return `<p style="margin: 0 0 12px 0;">${processedLine || '&nbsp;'}</p>`;
                     }
                 }).filter(l => l !== '').join('');
             })()}
@@ -115,7 +115,7 @@ and here is the final form link for you`;
             throw new Error(mailErr.error?.message || 'Mail send failed');
         }
 
-        console.log("Success! Clean sample mail (no redundant links) sent to Dinesh@applywizz.com");
+        console.log("Success! Final robust sample mail (with single-pass fix) sent to Dinesh@applywizz.com");
     } catch (error) {
         console.error("Error sending mail:", error.message);
     }

@@ -77,28 +77,29 @@ module.exports = async (req, res) => {
                                                                 <a href="${url}" style="color: #2563eb; text-decoration: none; font-weight: 600; font-size: 14px; word-break: break-all;">${url}</a>
                                                             </div>`;
                                     } else {
-                                        // 1. Linkify standard URLs first (skipping redundant one)
-                                        const inlineUrlRegex = /(https?:\/\/[^\s]+)/g;
-                                        let linkified = line.replace(inlineUrlRegex, (url) => {
-                                            if (hasKeyword && url === firstPdfUrl) return url;
-                                            return `<a href="${url}" style="color: #2563eb; text-decoration: underline;">${url}</a>`;
+                                        // Single-pass replacement to prevent double-processing
+                                        // 1. Manual links [text](url)
+                                        // 2. Keyword "digital resume"
+                                        // 3. Standard URLs
+                                        const combinedRegex = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|(digital[_ ]resume)|(https?:\/\/[^\s]+)/gi;
+
+                                        const processedLine = line.replace(combinedRegex, (match, mText, mUrl, keyword, standardUrl) => {
+                                            if (mText && mUrl) {
+                                                // Pattern 1: Manual Link [text](url)
+                                                return `<a href="${mUrl}" style="color: #2563eb; text-decoration: none; font-weight: bold;">${mText} &#8599;&#65038;</a>`;
+                                            } else if (keyword && firstPdfUrl) {
+                                                // Pattern 2: Keyword "digital resume"
+                                                return `<a href="${firstPdfUrl}" style="color: #2563eb; text-decoration: none; font-weight: bold;">${keyword} &#8599;&#65038;</a>`;
+                                            } else if (standardUrl) {
+                                                // Pattern 3: Standard URL
+                                                // Only show if it's not the redundant PDF link
+                                                if (hasKeyword && standardUrl === firstPdfUrl) return standardUrl;
+                                                return `<a href="${standardUrl}" style="color: #2563eb; text-decoration: underline;">${standardUrl}</a>`;
+                                            }
+                                            return match;
                                         });
 
-                                        // 2. Then replace "digital resume" keywords
-                                        if (firstPdfUrl) {
-                                            const drRegex = /(digital[_ ]resume)/gi;
-                                            linkified = linkified.replace(drRegex, (match) => {
-                                                return `<a href="${firstPdfUrl}" style="color: #2563eb; text-decoration: none; font-weight: bold;">${match} ↗</a>`;
-                                            });
-                                        }
-
-                                        // 3. Handle manual links [text](url)
-                                        const manualLinkRegex = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g;
-                                        linkified = linkified.replace(manualLinkRegex, (match, text, url) => {
-                                            return `<a href="${url}" style="color: #2563eb; text-decoration: none; font-weight: bold;">${text} ↗</a>`;
-                                        });
-
-                                        return `<p style="margin: 0 0 12px 0;">${linkified || '&nbsp;'}</p>`;
+                                        return `<p style="margin: 0 0 12px 0;">${processedLine || '&nbsp;'}</p>`;
                                     }
                                 }).filter(l => l !== '').join('');
                             })()}
