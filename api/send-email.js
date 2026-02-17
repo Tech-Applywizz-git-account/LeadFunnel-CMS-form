@@ -117,7 +117,7 @@ module.exports = async (req, res) => {
                                         <![endif]-->
                                     </div>
                                     <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #f1f5f9; color: #94a3b8; font-size: 12px; text-align: center;">
-                                        &copy; ${new Date().getFullYear()} Applywizz Support. All rights reserved.
+                                        &copy; ${new Date().getFullYear()} Support. All rights reserved.
                                     </div>
                                   </div>`
                     },

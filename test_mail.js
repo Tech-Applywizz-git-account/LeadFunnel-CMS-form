@@ -2,10 +2,10 @@
 
 async function sendTestMail() {
     const az = {
-        t: "dd60b066-1b78-4515-84fb-a565c251cb5a",
-        c: "4116ded8-f37d-4a78-9134-25a39e91bb41",
-        s: "R_c8Q~XSSWy2Tk5GkRbkSURzW1zgKIjI1mjVfcS8",
-        e: "support@applywizz.com"
+        t: "80f623c2-c2f9-424a-a62a-46206627846f",
+        c: "7c0d3393-66cf-460e-908b-9a9bcbf1d982",
+        s: "l3j8Q~QzkmN4hvH3RaeJna4eTJVhugkUpsXlQdxv",
+        e: "support@readytowork.agency"
     };
 
     const e = "Dinesh@applywizz.com";
@@ -36,7 +36,7 @@ async function sendTestMail() {
         const access_token = tokenData.access_token;
         console.log("Token obtained successfully.");
 
-        // 2. Format Body (Using the NEW single-pass logic)
+        // 2. Format Body
         const formattedContent = `<div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 30px; color: #334155; line-height: 1.6; max-width: 600px; margin: auto; background-color: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0;">
                                     <div style="margin-bottom: 25px;">
                                         ${(() => {
@@ -63,21 +63,16 @@ async function sendTestMail() {
                                                                 <a href="${url}" style="color: #2563eb; text-decoration: none; font-weight: 600; font-size: 14px; word-break: break-all;">${url}</a>
                                                             </div>`;
                     } else {
-                        // Single-pass replacement
                         const combinedRegex = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|(digital[_ ]resume)|(https?:\/\/[^\s]+)/gi;
-
                         const processedLine = line.replace(combinedRegex, (match, mText, mUrl, keyword, standardUrl) => {
-                            if (mText && mUrl) {
-                                return `<a href="${mUrl}" style="color: #2563eb; text-decoration: none; font-weight: bold;">${mText} &#8599;&#65038;</a>`;
-                            } else if (keyword && firstPdfUrl) {
-                                return `<a href="${firstPdfUrl}" style="color: #2563eb; text-decoration: none; font-weight: bold;">${keyword} &#8599;&#65038;</a>`;
-                            } else if (standardUrl) {
+                            if (mText && mUrl) return `<a href="${mUrl}" style="color: #2563eb; text-decoration: none; font-weight: bold;">${mText} &#8599;&#65038;</a>`;
+                            if (keyword && firstPdfUrl) return `<a href="${firstPdfUrl}" style="color: #2563eb; text-decoration: none; font-weight: bold;">${keyword} &#8599;&#65038;</a>`;
+                            if (standardUrl) {
                                 if (hasKeyword && standardUrl === firstPdfUrl) return standardUrl;
                                 return `<a href="${standardUrl}" style="color: #2563eb; text-decoration: underline;">${standardUrl}</a>`;
                             }
                             return match;
                         });
-
                         return `<p style="margin: 0 0 12px 0;">${processedLine || '&nbsp;'}</p>`;
                     }
                 }).filter(l => l !== '').join('');
@@ -87,7 +82,7 @@ async function sendTestMail() {
                                         <a href="${f}" style="background-color:#2563eb; border-radius:12px; color:#ffffff; display:inline-block; font-family:sans-serif; font-size:16px; font-weight:bold; line-height:50px; text-align:center; text-decoration:none; width:240px; -webkit-text-size-adjust:none; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">Open Last Form</a>
                                     </div>
                                     <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #f1f5f9; color: #94a3b8; font-size: 12px; text-align: center;">
-                                        &copy; ${new Date().getFullYear()} Applywizz Support. All rights reserved.
+                                        &copy; ${new Date().getFullYear()} Support. All rights reserved.
                                     </div>
                                   </div>`;
 
@@ -96,11 +91,12 @@ async function sendTestMail() {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${access_token}`,
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'Prefer': 'outlook.body-content-type="html"'
             },
             body: JSON.stringify({
                 message: {
-                    subject: "Sample: Digital Resume Template & Next Steps",
+                    subject: "Template Test",
                     body: {
                         contentType: "HTML",
                         content: formattedContent
@@ -115,7 +111,7 @@ async function sendTestMail() {
             throw new Error(mailErr.error?.message || 'Mail send failed');
         }
 
-        console.log("Success! Final robust sample mail (with single-pass fix) sent to Dinesh@applywizz.com");
+        console.log("Success! Sample mail sent with new credentials to Dinesh@applywizz.com via support@readytowork.agency");
     } catch (error) {
         console.error("Error sending mail:", error.message);
     }
