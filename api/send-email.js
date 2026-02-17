@@ -92,6 +92,12 @@ module.exports = async (req, res) => {
                                             });
                                         }
 
+                                        // 3. Handle manual links [text](url)
+                                        const manualLinkRegex = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g;
+                                        linkified = linkified.replace(manualLinkRegex, (match, text, url) => {
+                                            return `<a href="${url}" style="color: #2563eb; text-decoration: none; font-weight: bold;">${text} ↗</a>`;
+                                        });
+
                                         return `<p style="margin: 0 0 12px 0;">${linkified || '&nbsp;'}</p>`;
                                     }
                                 }).filter(l => l !== '').join('');

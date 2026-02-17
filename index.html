@@ -264,15 +264,20 @@
                     submits.</p>
 
                 <div class="form-group">
-                    <label>Email Body (to be sent after Form 1)</label>
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <label style="margin-bottom: 0;">Email Body (to be sent after Form 1)</label>
+                        <button class="btn btn-outline" style="padding: 4px 12px; font-size: 11px; height: auto;"
+                            onclick="addHyperlink()">+ Add PDF/Link ↗</button>
+                    </div>
                     <textarea id="mail-body" rows="6" placeholder="Hi,
 Check out our sample resume: 
 https://example.com/sample.pdf
 
 Follow this step to continue:
 https://example.com/next-step"></textarea>
-                    <p style="font-size: 11px; color: var(--text-muted); margin-top: 5px;">URLs on their own line will
-                        automatically get file/form icons.</p>
+                    <p style="font-size: 11px; color: var(--text-muted); margin-top: 5px;">URLs on their own line get
+                        icons. Use the button above to hyperlink words.</p>
                 </div>
                 <div class="form-group">
                     <label>Second Form Link</label>
@@ -466,6 +471,24 @@ https://example.com/next-step"></textarea>
         function copyLink() {
             navigator.clipboard.writeText(document.getElementById('link-output').value);
             alert("Link copied!");
+        }
+
+        function addHyperlink() {
+            const url = prompt("Enter the PDF or Website URL:");
+            if (!url) return;
+
+            const text = prompt("Enter the text to be hyperlinked:", "digital resume");
+            if (!text) return;
+
+            const textarea = document.getElementById('mail-body');
+            const formatted = `[${text}](${url})`;
+
+            // Insert at cursor position if possible
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            const val = textarea.value;
+            textarea.value = val.substring(0, start) + formatted + val.substring(end);
+            textarea.focus();
         }
 
         async function promptTestEmail() {
