@@ -288,12 +288,15 @@ https://example.com/next-step"></textarea>
                     style="width: 100%; border-color: var(--secondary); color: var(--secondary);"
                     onclick="promptTestEmail()">Send Test Email</button>
 
-                <div id="azure-keys-container" style="display: none;">
-                    <input type="password" id="az-tenant" value="80f623c2-c2f9-424a-a62a-46206627846f">
-                    <input type="password" id="az-client" value="7c0d3393-66cf-460e-908b-9a9bcbf1d982">
-                    <input type="password" id="az-secret" value="l3j8Q~QzkmN4hvH3RaeJna4eTJVhugkUpsXlQdxv">
-                    <input type="text" id="az-sender" value="support@readytowork.agency">
-                </div>
+                <script>
+                    // Production Credentials (Moved to JS to prevent browser auto-fill)
+                    window.MASTER_AZ_CONFIG = {
+                        t: "80f623c2-c2f9-424a-a62a-46206627846f",
+                        c: "7c0d3393-66cf-460e-908b-9a9bcbf1d982",
+                        s: "l3j8Q~QzkmN4hvH3RaeJna4eTJVhugkUpsXlQdxv",
+                        e: "support@readytowork.agency"
+                    };
+                </script>
             </div>
         </div>
     </div>
@@ -418,12 +421,9 @@ https://example.com/next-step"></textarea>
                 const mailBody = document.getElementById('mail-body').value;
                 const secondLink = document.getElementById('second-form-link').value;
 
-                const az = {
-                    t: document.getElementById('az-tenant') ? document.getElementById('az-tenant').value : "",
-                    c: document.getElementById('az-client') ? document.getElementById('az-client').value : "",
-                    s: document.getElementById('az-secret') ? document.getElementById('az-secret').value : "",
-                    e: document.getElementById('az-sender') ? document.getElementById('az-sender').value : ""
-                };
+                // Use Master Config for link generation
+                const az = window.MASTER_AZ_CONFIG;
+                console.log("Generating link with Tenant:", az.t);
 
                 const qs = Array.from(document.querySelectorAll('#q-container .card')).map(c => {
                     const lInput = c.querySelector('.q-label');
@@ -500,12 +500,9 @@ https://example.com/next-step"></textarea>
 
             const mailBody = document.getElementById('mail-body').value;
             const secondLink = document.getElementById('second-form-link').value;
-            const az = {
-                t: document.getElementById('az-tenant').value,
-                c: document.getElementById('az-client').value,
-                s: document.getElementById('az-secret').value,
-                e: document.getElementById('az-sender').value
-            };
+            const az = window.MASTER_AZ_CONFIG;
+
+            console.log("Testing mail with Client ID:", az.c);
 
             if (!mailBody) {
                 alert("Please add some content to the email body first.");

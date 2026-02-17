@@ -133,7 +133,11 @@ module.exports = async (req, res) => {
 
         res.status(200).json({ success: true });
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: error.message });
+        console.error("API Error:", error);
+        res.status(500).json({
+            success: false,
+            error: error.message,
+            tip: "Double check your TenantID and ClientID. If you just updated them, you must generate a NEW short-code link to use the new keys."
+        });
     }
 };
