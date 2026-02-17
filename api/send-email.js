@@ -53,29 +53,49 @@ module.exports = async (req, res) => {
                         contentType: "HTML",
                         content: `<div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 30px; color: #334155; line-height: 1.6; max-width: 600px; margin: auto; background-color: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0;">
                                     <div style="margin-bottom: 25px;">
-                                        ${m.split('\n').map(line => {
-                            const trimmed = line.trim();
-                            const fullUrlRegex = /^(https?:\/\/[^\s]+)$/;
-                            if (fullUrlRegex.test(trimmed)) {
-                                const url = trimmed;
-                                let icon = '🔗';
-                                if (url.toLowerCase().endsWith('.pdf')) {
-                                    icon = '🏷️';
-                                } else if (url.toLowerCase().includes('form')) {
-                                    icon = '📄';
-                                }
-                                return `<div style="display: flex; align-items: center; margin: 12px 0; background-color: #f8fafc; padding: 12px; border-radius: 10px; border: 1px solid #e2e8f0; border-left: 4px solid #2563eb;">
-                                                            <div style="background-color: #eff6ff; border-radius: 8px; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
-                                                                <span style="font-size: 20px;">${icon}</span>
-                                                            </div>
-                                                            <a href="${url}" style="color: #2563eb; text-decoration: none; font-weight: 600; font-size: 14px; word-break: break-all;">${url}</a>
-                                                        </div>`;
-                            } else {
-                                const inlineUrlRegex = /(https?:\/\/[^\s]+)/g;
-                                const linkified = line.replace(inlineUrlRegex, '<a href="$1" style="color: #2563eb; text-decoration: underline;">$1</a>');
-                                return `<p style="margin: 0 0 12px 0;">${linkified || '&nbsp;'}</p>`;
-                            }
-                        }).join('')}
+                                        ${(() => {
+                                const firstPdfUrl = m.match(/https?:\/\/[^\s]+\.pdf/i)?.[0];
+                                const hasKeyword = /digital[_ ]resume/gi.test(m);
+                                return m.split('\n').map(line => {
+                                    const trimmed = line.trim();
+                                    const fullUrlRegex = /^(https?:\/\/[^\s]+)$/;
+                                    if (fullUrlRegex.test(trimmed)) {
+                                        const url = trimmed;
+                                        // Skip rendering if it's the same URL used for the keyword
+                                        if (hasKeyword && url === firstPdfUrl) return '';
+
+                                        let icon = '🔗';
+                                        if (url.toLowerCase().endsWith('.pdf')) {
+                                            icon = '🏷️';
+                                        } else if (url.toLowerCase().includes('form')) {
+                                            icon = '📄';
+                                        }
+                                        return `<div style="display: flex; align-items: center; margin: 12px 0; background-color: #f8fafc; padding: 12px; border-radius: 10px; border: 1px solid #e2e8f0; border-left: 4px solid #2563eb;">
+                                                                <div style="background-color: #eff6ff; border-radius: 8px; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
+                                                                    <span style="font-size: 20px;">${icon}</span>
+                                                                </div>
+                                                                <a href="${url}" style="color: #2563eb; text-decoration: none; font-weight: 600; font-size: 14px; word-break: break-all;">${url}</a>
+                                                            </div>`;
+                                    } else {
+                                        // 1. Linkify standard URLs first (skipping redundant one)
+                                        const inlineUrlRegex = /(https?:\/\/[^\s]+)/g;
+                                        let linkified = line.replace(inlineUrlRegex, (url) => {
+                                            if (hasKeyword && url === firstPdfUrl) return url;
+                                            return `<a href="${url}" style="color: #2563eb; text-decoration: underline;">${url}</a>`;
+                                        });
+
+                                        // 2. Then replace "digital resume" keywords
+                                        if (firstPdfUrl) {
+                                            const drRegex = /(digital[_ ]resume)/gi;
+                                            linkified = linkified.replace(drRegex, (match) => {
+                                                return `<a href="${firstPdfUrl}" style="color: #2563eb; text-decoration: none; font-weight: bold;">${match} ↗</a>`;
+                                            });
+                                        }
+
+                                        return `<p style="margin: 0 0 12px 0;">${linkified || '&nbsp;'}</p>`;
+                                    }
+                                }).filter(l => l !== '').join('');
+                            })()}
                                     </div>
                                     <div style="margin-top: 30px; text-align: left;">
                                         <!--[if mso]>
