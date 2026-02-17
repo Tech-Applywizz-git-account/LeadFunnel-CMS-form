@@ -10,7 +10,7 @@ node_modules/
 .vercel/
 dist/
 build/
-
+test_main.js
 # IDE files
 .vscode/
 .idea/
