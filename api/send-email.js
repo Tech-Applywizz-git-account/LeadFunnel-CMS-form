@@ -54,16 +54,11 @@ module.exports = async (req, res) => {
                         content: `<div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 30px; color: #334155; line-height: 1.6; max-width: 600px; margin: auto; background-color: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0;">
                                     <div style="margin-bottom: 25px;">
                                         ${(() => {
-                                const firstPdfUrl = m.match(/https?:\/\/[^\s]+\.pdf/i)?.[0];
-                                const hasKeyword = /digital[_ ]resume/gi.test(m);
                                 return m.split('\n').map(line => {
                                     const trimmed = line.trim();
                                     const fullUrlRegex = /^(https?:\/\/[^\s]+)$/;
                                     if (fullUrlRegex.test(trimmed)) {
                                         const url = trimmed;
-                                        // Skip rendering if it's the same URL used for the keyword
-                                        if (hasKeyword && url === firstPdfUrl) return '';
-
                                         let icon = '🔗';
                                         if (url.toLowerCase().endsWith('.pdf')) {
                                             icon = '🏷️';
@@ -79,21 +74,15 @@ module.exports = async (req, res) => {
                                     } else {
                                         // Single-pass replacement to prevent double-processing
                                         // 1. Manual links [text](url)
-                                        // 2. Keyword "digital resume"
-                                        // 3. Standard URLs
-                                        const combinedRegex = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|(digital[_ ]resume)|(https?:\/\/[^\s]+)/gi;
+                                        // 2. Standard URLs
+                                        const combinedRegex = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|(https?:\/\/[^\s]+)/gi;
 
-                                        const processedLine = line.replace(combinedRegex, (match, mText, mUrl, keyword, standardUrl) => {
+                                        const processedLine = line.replace(combinedRegex, (match, mText, mUrl, standardUrl) => {
                                             if (mText && mUrl) {
                                                 // Pattern 1: Manual Link [text](url)
                                                 return `<a href="${mUrl}" style="color: #2563eb; text-decoration: none; font-weight: bold;">${mText} &#8599;&#65038;</a>`;
-                                            } else if (keyword && firstPdfUrl) {
-                                                // Pattern 2: Keyword "digital resume"
-                                                return `<a href="${firstPdfUrl}" style="color: #2563eb; text-decoration: none; font-weight: bold;">${keyword} &#8599;&#65038;</a>`;
                                             } else if (standardUrl) {
-                                                // Pattern 3: Standard URL
-                                                // Only show if it's not the redundant PDF link
-                                                if (hasKeyword && standardUrl === firstPdfUrl) return standardUrl;
+                                                // Pattern 2: Standard URL
                                                 return `<a href="${standardUrl}" style="color: #2563eb; text-decoration: underline;">${standardUrl}</a>`;
                                             }
                                             return match;
