@@ -515,33 +515,44 @@
             const bid = bidInput.value || "AWL-6747";
 
             // Include bid in config so URL stays short
-            const config = { f: fields, b: bid };
+            const config = { q: fields, b: bid }; // Using 'q' for questions (f) to save space
 
             // Generate 5-character short code
             const shortCode = Math.random().toString(36).substring(2, 7).toUpperCase();
 
+            // 1. Try to save to Supabase
             if (supabaseClient) {
-                const { error: saveError } = await supabaseClient.from('leads').insert({
-                    name: `Form2-Config-${shortCode}`,
-                    email: `form-config2-${shortCode}@internal`,
-                    business_id: `CFG2-${shortCode}`,
-                    extra_data: config
-                });
-
-                if (saveError) {
-                    console.error("Save Error", saveError);
-                    alert("Database Error: " + saveError.message);
-                } else {
-                    const finalUrl = `${window.location.origin}${window.location.pathname}?s=${shortCode}`;
-                    generatedLinkInput.textContent = finalUrl;
-                    linkSection.style.display = 'block';
-
-                    createFormBtn.innerHTML = 'Generated ✓';
-                    createFormBtn.classList.add('success');
-                }
-            } else {
-                alert("Supabase not connected.");
+                try {
+                    await supabaseClient.from('leads').insert({
+                        name: `Form2-Config-${shortCode}`,
+                        email: `cfg2-${shortCode}@permanent.internal`,
+                        business_id: `CFG2-${shortCode}`,
+                        extra_data: config
+                    });
+                } catch (e) { console.warn("Supabase save error:", e); }
             }
+
+            // 2. Construct Robust URL (with base64 fallback)
+            const encodedCfg = btoa(unescape(encodeURIComponent(JSON.stringify(config))));
+            let finalUrl = `${window.location.origin}${window.location.pathname}?s=${shortCode}&c=${encodedCfg}`;
+
+            // 3. Optional: Shorten with our API
+            try {
+                const shortRes = await fetch('/api/short', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url: finalUrl })
+                });
+                if (shortRes.ok) {
+                    const { shortUrl } = await shortRes.json();
+                    if (shortUrl) finalUrl = shortUrl;
+                }
+            } catch (e) { console.warn("Shortener failed"); }
+
+            generatedLinkInput.textContent = finalUrl;
+            linkSection.style.display = 'block';
+            createFormBtn.innerHTML = 'Generated ✓';
+            createFormBtn.classList.add('success');
 
             createFormBtn.disabled = false;
             if (!linkSection.style.display) createFormBtn.innerHTML = originalBtnText;
@@ -571,26 +582,54 @@
                 supabaseClient = supabase.createClient(finalUrl, finalKey);
             }
 
-            // Load config from short code
+            // 1. Try Cache first
+            const cacheKey = `cfg2_${shortCode || 'base'}`;
+            try {
+                const cached = localStorage.getItem(cacheKey);
+                if (cached) currentFormConfig = JSON.parse(cached);
+            } catch (e) { }
+
+            // 2. Load config from short code
             if (shortCode && supabaseClient) {
                 try {
                     const { data, error } = await supabaseClient.from('leads').select('extra_data').eq('business_id', `CFG2-${shortCode}`).single();
-                    if (data) currentFormConfig = data.extra_data;
+                    if (data && data.extra_data) {
+                        currentFormConfig = data.extra_data;
+                        localStorage.setItem(cacheKey, JSON.stringify(currentFormConfig));
+                    }
                 } catch (e) { console.error("Short code load error", e); }
             }
 
-            // Fallback to base64 encoded config
+            // 3. Fallback to base64 encoded config
             if (!currentFormConfig && encoded) {
-                if (document.getElementById('nav-container')) document.getElementById('nav-container').style.display = 'none';
                 try {
                     const raw = atob(encoded.replace(/ /g, '+'));
-                    try { currentFormConfig = JSON.parse(decodeURIComponent(escape(raw))); }
-                    catch (e) { currentFormConfig = JSON.parse(raw); }
+                    let parsed = null;
+                    try { parsed = JSON.parse(decodeURIComponent(escape(raw))); }
+                    catch (e) { parsed = JSON.parse(raw); }
+
+                    if (parsed) {
+                        // Normalize keys
+                        if (parsed.q && !parsed.f) {
+                            currentFormConfig = {
+                                f: parsed.q,
+                                b: parsed.b
+                            };
+                        } else {
+                            currentFormConfig = parsed;
+                        }
+                        if (shortCode) localStorage.setItem(cacheKey, JSON.stringify(currentFormConfig));
+                    }
                 } catch (e) { console.error("Config error", e); }
             }
 
             if (shortCode || encoded) {
                 if (document.getElementById('nav-container')) document.getElementById('nav-container').style.display = 'none';
+
+                if (!currentFormConfig) {
+                    alert("Error loading form configuration. The link might be expired or broken.");
+                    return;
+                }
 
                 // FETCH BID DYNAMICALLY from table if 'lid' or 'id' is provided
                 const lid = params.get('lid') || params.get('id');
@@ -603,7 +642,7 @@
                     } catch (err) { console.error("Lookup error", err); }
                 }
 
-                if (currentFormConfig) renderForm(currentFormConfig);
+                renderForm(currentFormConfig);
             } else {
                 createFieldRow("Email", "email");
             }
