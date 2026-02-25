@@ -286,7 +286,7 @@
     <!-- END-USER FORM VIEW -->
     <div class="container" id="form-view" style="max-width: 600px;">
         <div class="card main-card">
-            <h1 class="card-title">form Submission</h1>
+            <h1 class="card-title">Form Submission</h1>
             <p style="color: var(--text-muted); font-size: 14px;">Please complete the form below.</p>
             <div class="divider"></div>
             <form id="end-user-form">
@@ -413,7 +413,7 @@
                 const qs = Array.from(document.querySelectorAll('#q-container .card')).map(c => {
                     const lInput = c.querySelector('.q-label');
                     const tSelect = c.querySelector('.q-type');
-                    const label = lInput ? lInput.value : "Question";
+                    const label = (lInput ? lInput.value : "Question") || "Question";
                     const type = tSelect ? tSelect.value : "text";
 
                     const field = { l: label, t: type };
@@ -424,23 +424,42 @@
                     return field;
                 });
 
-                const cfg = { b: bid, m: mailBody, sLink: secondLink, az: az, qs: qs };
+                // Use optimized keys to keep URL short
+                const cfg = { b: bid, m: mailBody, s: secondLink, a: az, q: qs };
 
                 // Generate 5-character short code
                 const shortCode = Math.random().toString(36).substring(2, 7).toUpperCase();
 
+                // 1. Try to save to Supabase
                 if (supabaseClient) {
-                    const { error: saveError } = await supabaseClient.from('leads').insert({
-                        name: `Form1-Config-${shortCode}`,
-                        email: `form-config-${shortCode}@internal`,
-                        business_id: `CFG-${shortCode}`,
-                        extra_data: cfg
-                    });
-                    if (saveError) throw new Error(`Save Error: ${saveError.message}`);
+                    try {
+                        await supabaseClient.from('leads').insert({
+                            name: `Form1-Config-${shortCode}`,
+                            email: `cfg-${shortCode}@permanent.internal`, // Use a unique domain to avoid cleanup filters
+                            business_id: `CFG-${shortCode}`,
+                            extra_data: cfg
+                        });
+                    } catch (e) { console.warn("Supabase save error:", e); }
                 }
 
-                const link = `${window.location.origin}${window.location.pathname}?s=${shortCode}`;
-                document.getElementById('link-output').value = link;
+                // 2. Construct Robust URL (with base64 fallback)
+                const encodedCfg = btoa(unescape(encodeURIComponent(JSON.stringify(cfg))));
+                let finalLink = `${window.location.origin}${window.location.pathname}?s=${shortCode}&c=${encodedCfg}`;
+
+                // 3. Optional: Shorten with our API
+                try {
+                    const shortRes = await fetch('/api/short', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ url: finalLink })
+                    });
+                    if (shortRes.ok) {
+                        const { shortUrl } = await shortRes.json();
+                        if (shortUrl) finalLink = shortUrl;
+                    }
+                } catch (e) { console.warn("Shortener failed"); }
+
+                document.getElementById('link-output').value = finalLink;
                 document.getElementById('generated-section').style.display = 'block';
 
                 btn.textContent = 'Generated ✓';
@@ -463,32 +482,70 @@
             const shortCode = params.get('s');
             const cStr = params.get('c');
 
-            // Load config from short code
-            if (shortCode && supabaseClient) {
-                try {
-                    const { data, error } = await supabaseClient.from('leads').select('extra_data').eq('business_id', `CFG-${shortCode}`).single();
-                    if (data) config = data.extra_data;
-                } catch (e) { console.error("Short code load error", e); }
-            }
-
             if (!shortCode && !cStr) {
                 if (document.getElementById('nav-container')) document.getElementById('nav-container').style.display = 'flex';
                 addQ("Email", "email");
                 return;
             }
 
-            // If not loaded from short code, try base64
+            // 1. Try Cache first for immediate load
+            const cacheKey = `cfg_${shortCode || 'base'}`;
+            try {
+                const cached = localStorage.getItem(cacheKey);
+                if (cached) config = JSON.parse(cached);
+            } catch (e) { }
+
+            // 2. Try Supabase if shortCode exists
+            if (shortCode && supabaseClient) {
+                try {
+                    const { data, error } = await supabaseClient.from('leads').select('extra_data').eq('business_id', `CFG-${shortCode}`).single();
+                    if (data && data.extra_data) {
+                        config = data.extra_data;
+                        localStorage.setItem(cacheKey, JSON.stringify(config)); // Update cache
+                    }
+                } catch (e) { console.error("Database load error:", e); }
+            }
+
+            // 3. Fallback to base64 encoded config (c parameter)
             if (!config && cStr) {
                 try {
                     const raw = atob(cStr.replace(/ /g, '+'));
-                    try { config = JSON.parse(decodeURIComponent(escape(raw))); }
-                    catch (e) { config = JSON.parse(raw); }
-                } catch (e) { console.error("Config parse error", e); }
+                    let parsed = null;
+                    try { parsed = JSON.parse(decodeURIComponent(escape(raw))); }
+                    catch (e) { parsed = JSON.parse(raw); }
+
+                    if (parsed) {
+                        // Normalize keys if optimized (short) version was used
+                        if (parsed.q && !parsed.qs) {
+                            config = {
+                                b: parsed.b,
+                                m: parsed.m,
+                                sLink: parsed.s || parsed.sLink,
+                                az: parsed.a || parsed.az,
+                                qs: parsed.q.map(q => ({
+                                    l: q.l,
+                                    t: q.t,
+                                    o: q.o
+                                }))
+                            };
+                        } else {
+                            config = parsed;
+                        }
+                        if (shortCode) localStorage.setItem(cacheKey, JSON.stringify(config));
+                    }
+                } catch (e) { console.error("Config decoding error:", e); }
             }
 
-            if (!config) { alert("Error loading form configuration."); return; }
+            if (!config) {
+                const errMsg = "Error loading form configuration. " +
+                    (shortCode ? `(Code: ${shortCode}) ` : "") +
+                    "The link might be broken or the database record might have been removed. Please try generating a new link.";
+                alert(errMsg);
+                console.error("Initialization failed: No config found.");
+                return;
+            }
 
-            console.log("Form config detected. Initializing End-User Form.");
+            console.log("Form config localized. Initializing End-User Form.");
             document.getElementById('builder-view').style.display = 'none';
             document.getElementById('form-view').style.display = 'block';
             if (document.getElementById('nav-container')) document.getElementById('nav-container').style.display = 'none';
@@ -501,7 +558,9 @@
 
                 const container = document.getElementById('end-user-fields');
                 container.innerHTML = "";
-                const questions = (Array.isArray(config.qs) ? config.qs : (Array.isArray(config.f) ? config.f : []));
+
+                // Support both key styles (qs vs f vs q)
+                const questions = (Array.isArray(config.qs) ? config.qs : (Array.isArray(config.f) ? config.f : (Array.isArray(config.q) ? config.q : [])));
 
                 questions.forEach((q, i) => {
                     const label = q.l || q.n || "Question";
@@ -514,7 +573,7 @@
                     div.className = 'card';
                     div.style.padding = '24px';
                     div.style.marginBottom = '20px';
-                    div.style.background = 'white'; // Solid background for clarity
+                    div.style.background = 'white';
                     div.style.boxShadow = '0 4px 12px rgba(0,0,0,0.05)';
 
                     let html = `<label style="display:block;margin-bottom:12px;font-weight:600;color:var(--text);font-size:16px;">${label}</label>`;
@@ -537,7 +596,7 @@
                 console.log("Form rendering complete.");
             } catch (e) {
                 console.error("Critical Form Error:", e);
-                alert("Error loading form configuration. The link might be corrupted.");
+                alert("Error rendering form: " + e.message);
             }
         }
 
