@@ -581,26 +581,8 @@ https://example.com/next-step"></textarea>
                 return;
             }
 
-            // 1. Try Cache first for immediate load
-            const cacheKey = `cfg_${shortCode || 'base'}`;
-            try {
-                const cached = localStorage.getItem(cacheKey);
-                if (cached) config = JSON.parse(cached);
-            } catch (e) { }
-
-            // 2. Try Supabase if shortCode exists
-            if (shortCode && supabaseClient) {
-                try {
-                    const { data, error } = await supabaseClient.from('leads').select('extra_data').eq('business_id', `CFG-${shortCode}`).single();
-                    if (data && data.extra_data) {
-                        config = data.extra_data;
-                        localStorage.setItem(cacheKey, JSON.stringify(config)); // Update cache
-                    }
-                } catch (e) { console.error("Database load error:", e); }
-            }
-
-            // 3. Fallback to base64 encoded config (c parameter)
-            if (!config && cStr) {
+            // 1. HIGH PRIORITY: Try URL Fallback (The direct link ALWAYS wins)
+            if (cStr) {
                 try {
                     const raw = atob(cStr.replace(/ /g, '+'));
                     let parsed = null;
@@ -608,60 +590,71 @@ https://example.com/next-step"></textarea>
                     catch (e) { parsed = JSON.parse(raw); }
 
                     if (parsed) {
-                        // Normalize keys if optimized (short) version was used
+                        // Normalize keys
                         if (parsed.q && !parsed.qs) {
                             config = {
-                                b: parsed.b,
-                                m: parsed.m,
-                                sLink: parsed.s || parsed.sLink,
+                                b: parsed.b, m: parsed.m, sLink: parsed.s || parsed.sLink,
                                 az: parsed.a || parsed.az,
-                                qs: parsed.q.map(q => ({
-                                    l: q.l,
-                                    t: q.t,
-                                    o: q.o
-                                }))
+                                qs: parsed.q
                             };
-                        } else {
-                            config = parsed;
-                        }
-                        if (shortCode) localStorage.setItem(cacheKey, JSON.stringify(config));
+                        } else { config = parsed; }
                     }
-                } catch (e) { console.error("Config decoding error:", e); }
+                } catch (e) { console.error("URL Decode Error:", e); }
+            }
+
+            // 2. MID PRIORITY: Try Supabase (Cloud Source of Truth)
+            if (!config && shortCode && supabaseClient) {
+                try {
+                    const { data, error } = await supabaseClient.from('leads').select('extra_data').eq('business_id', `CFG-${shortCode}`).single();
+                    if (data && data.extra_data) config = data.extra_data;
+                } catch (e) { console.error("Database Error:", e); }
+            }
+
+            // 3. LOW PRIORITY: Try Local Cache (Emergency backup)
+            if (!config) {
+                try {
+                    const cached = localStorage.getItem(`cfg_${shortCode || 'base'}`);
+                    if (cached) config = JSON.parse(cached);
+                } catch (e) { }
             }
 
             if (!config) {
                 const errMsg = "Error loading form configuration. " +
                     (shortCode ? `(Code: ${shortCode}) ` : "") +
-                    "The link might be broken or the database record might have been removed. Please try generating a new link.";
+                    "Please make sure you have the complete link.";
                 alert(errMsg);
-                console.error("Initialization failed: No config found.");
                 return;
             }
 
-            console.log("Form config localized. Initializing End-User Form.");
+            // Save for future offline access
+            if (shortCode) localStorage.setItem(`cfg_${shortCode}`, JSON.stringify(config));
+
+            console.log("Form config initialized.");
             document.getElementById('builder-view').style.display = 'none';
             document.getElementById('form-view').style.display = 'block';
             if (document.getElementById('nav-container')) document.getElementById('nav-container').style.display = 'none';
 
             try {
-                // Pre-fill email if in URL
                 const prefilledEmail = params.get('email') || '';
-                const staticMail = document.getElementById('user-email-static');
-                if (staticMail && prefilledEmail) staticMail.value = prefilledEmail;
-
                 const container = document.getElementById('end-user-fields');
                 container.innerHTML = "";
 
-                // Support both key styles (qs vs f vs q)
                 const questions = (Array.isArray(config.qs) ? config.qs : (Array.isArray(config.f) ? config.f : (Array.isArray(config.q) ? config.q : [])));
 
                 questions.forEach((q, i) => {
                     const label = q.l || q.n || "Question";
                     const type = q.t || "text";
                     const options = q.o || [];
+                    const name = `q_${i}`;
 
-                    // Skip email fields since we have a static email field
-                    if (type === 'email' || label.toLowerCase().includes('email')) return;
+                    // Auto-handle the primary email field
+                    const isPrimaryEmail = (i === 0 && (label.toLowerCase() === 'email' || type === 'email'));
+                    if (isPrimaryEmail) {
+                        const staticMail = document.getElementById('user-email-static');
+                        if (staticMail && prefilledEmail) staticMail.value = prefilledEmail;
+                        return;
+                    }
+
                     const div = document.createElement('div');
                     div.className = 'card';
                     div.style.padding = '24px';
@@ -670,7 +663,6 @@ https://example.com/next-step"></textarea>
                     div.style.boxShadow = '0 4px 12px rgba(0,0,0,0.05)';
 
                     let html = `<label style="display:block;margin-bottom:12px;font-weight:600;color:var(--text);font-size:16px;">${label}</label>`;
-                    const name = `q_${i}`;
 
                     if (type === 'textarea') {
                         html += `<textarea name="${name}" required style="background:#f8fafc; border: 1px solid #cbd5e1;"></textarea>`;
@@ -681,15 +673,14 @@ https://example.com/next-step"></textarea>
                             html += `<div style="display:flex;gap:10px;margin:8px 0;align-items:center;"><input type="${type === 'radio' ? 'radio' : 'checkbox'}" name="${name}" value="${opt}" id="${name}_${opt}" style="width:18px;height:18px;"><label for="${name}_${opt}" style="margin:0;font-weight:400;font-size:15px;cursor:pointer;">${opt}</label></div>`;
                         });
                     } else {
-                        html += `<input type="${type}" name="${name}" required style="background:#f8fafc; border: 1px solid #cbd5e1;">`;
+                        html += `<input type="${type}" name="${name}" required value="${(type === 'email' && i === 0) ? prefilledEmail : ''}" style="background:#f8fafc; border: 1px solid #cbd5e1;">`;
                     }
                     div.innerHTML = html;
                     container.appendChild(div);
                 });
-                console.log("Form rendering complete.");
             } catch (e) {
-                console.error("Critical Form Error:", e);
-                alert("Error rendering form: " + e.message);
+                console.error("Render Error:", e);
+                alert("Error displaying form fields: " + e.message);
             }
         }
 
