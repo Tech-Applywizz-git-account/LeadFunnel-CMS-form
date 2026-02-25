@@ -582,26 +582,8 @@
                 supabaseClient = supabase.createClient(finalUrl, finalKey);
             }
 
-            // 1. Try Cache first
-            const cacheKey = `cfg2_${shortCode || 'base'}`;
-            try {
-                const cached = localStorage.getItem(cacheKey);
-                if (cached) currentFormConfig = JSON.parse(cached);
-            } catch (e) { }
-
-            // 2. Load config from short code
-            if (shortCode && supabaseClient) {
-                try {
-                    const { data, error } = await supabaseClient.from('leads').select('extra_data').eq('business_id', `CFG2-${shortCode}`).single();
-                    if (data && data.extra_data) {
-                        currentFormConfig = data.extra_data;
-                        localStorage.setItem(cacheKey, JSON.stringify(currentFormConfig));
-                    }
-                } catch (e) { console.error("Short code load error", e); }
-            }
-
-            // 3. Fallback to base64 encoded config
-            if (!currentFormConfig && encoded) {
+            // 1. HIGH PRIORITY: Try URL Fallback (Always reflects current link intent)
+            if (encoded) {
                 try {
                     const raw = atob(encoded.replace(/ /g, '+'));
                     let parsed = null;
@@ -611,25 +593,43 @@
                     if (parsed) {
                         // Normalize keys
                         if (parsed.q && !parsed.f) {
-                            currentFormConfig = {
-                                f: parsed.q,
-                                b: parsed.b
-                            };
+                            currentFormConfig = { f: parsed.q, b: parsed.b };
                         } else {
                             currentFormConfig = parsed;
                         }
-                        if (shortCode) localStorage.setItem(cacheKey, JSON.stringify(currentFormConfig));
                     }
-                } catch (e) { console.error("Config error", e); }
+                } catch (e) { console.error("URL Decode Error:", e); }
+            }
+
+            // 2. MID PRIORITY: Try Supabase
+            if (!currentFormConfig && shortCode && supabaseClient) {
+                try {
+                    const { data, error } = await supabaseClient.from('leads').select('extra_data').eq('business_id', `CFG2-${shortCode}`).single();
+                    if (data && data.extra_data) currentFormConfig = data.extra_data;
+                } catch (e) { console.error("Database Error:", e); }
+            }
+
+            // 3. LOW PRIORITY: Try Cache
+            if (!currentFormConfig) {
+                try {
+                    const cached = localStorage.getItem(`cfg2_${shortCode || 'base'}`);
+                    if (cached) currentFormConfig = JSON.parse(cached);
+                } catch (e) { }
             }
 
             if (shortCode || encoded) {
                 if (document.getElementById('nav-container')) document.getElementById('nav-container').style.display = 'none';
 
                 if (!currentFormConfig) {
-                    alert("Error loading form configuration. The link might be expired or broken.");
+                    const msg = "Error loading form configuration. " +
+                        (shortCode ? `(Code: ${shortCode}) ` : "") +
+                        "Please check if your link is correct.";
+                    alert(msg);
                     return;
                 }
+
+                // Save for refresh
+                if (shortCode) localStorage.setItem(`cfg2_${shortCode}`, JSON.stringify(currentFormConfig));
 
                 // FETCH BID DYNAMICALLY from table if 'lid' or 'id' is provided
                 const lid = params.get('lid') || params.get('id');
@@ -658,9 +658,12 @@
             const container = document.getElementById('view-fields-container');
             container.innerHTML = '';
 
-            const questions = (Array.isArray(config.f) ? config.f : (Array.isArray(config.qs) ? config.qs : []));
+            // Support all key variations: f (old), qs (index style), q (optimized)
+            const questions = (Array.isArray(config.q) ? config.q : (Array.isArray(config.f) ? config.f : (Array.isArray(config.qs) ? config.qs : [])));
+
             if (questions.length === 0) {
-                console.warn("No questions found in config to render.");
+                console.warn("No questions found in config to render.", config);
+                container.innerHTML = `<div class="card" style="padding:20px; color:#ef4444;">No form fields found in configuration. Please re-generate the link.</div>`;
                 return;
             }
 
